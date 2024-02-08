@@ -45,6 +45,7 @@ import CUDA
 
 
 kernel_ids = []
+target_backend = ""
 
 
 function extract_kernel_name_from_call(expr)
@@ -242,13 +243,13 @@ function expr_replacer(expr)
     end
 
     if     expr_identify(expr, "(CUDA.threadIdx()).x")
-        return Meta.parse("KernelAbstractions.@index(Local, Cartesian)[1]")
+        return Meta.parse("@index(Local, Cartesian)[1]")
     elseif expr_identify(expr, "(CUDA.threadIdx()).y")
-        return Meta.parse("KernelAbstractions.@index(Local, Cartesian)[2]")
+        return Meta.parse("@index(Local, Cartesian)[2]")
     elseif expr_identify(expr, "(CUDA.blockIdx()).x")
-        return Meta.parse("KernelAbstractions.@index(Group, Cartesian)[1]")
+        return Meta.parse("@index(Group, Cartesian)[1]")
     elseif expr_identify(expr, "(CUDA.blockIdx()).y")
-        return Meta.parse("KernelAbstractions.@index(Group, Cartesian)[2]")
+        return Meta.parse("@index(Group, Cartesian)[2]")
     elseif expr_identify(expr, "(CUDA.blockDim()).x")
         return Meta.parse("KernelAbstractions.@groupsize()[1]")
     elseif expr_identify(expr, "(CUDA.blockDim()).y")
@@ -382,22 +383,34 @@ function replace_cuda(str)
     namespace_replacer(ast_top)
     warning_generator(ast_top)
 
-    #string_representation = "@kernel " * string_representation TODO 
-
-    pushfirst!(ast_top.args, Meta.parse("backend = oneAPIBackend()"))
-    pushfirst!(ast_top.args, Expr(:using, Expr(:., :., :KAUtils)))
-    pushfirst!(ast_top.args, Expr(:call, :include, String(@__DIR__) * "/KAUtils.jl"))
-    pushfirst!(ast_top.args, Meta.parse("using oneAPI"))
-
     for id in kernel_ids
         add_kernel_macro!(ast_top, id)
     end
 
-    
+    #string_representation = "@kernel " * string_representation TODO 
 
 
-    #include("/homelocal/encalle_local/Desktop/Julia/kernelAbstractor/src/KAUtils.jl")
-    #using .KAUtils
+    if target_backend == "CUDA"
+        pushfirst!(ast_top.args, Meta.parse("backend = CUDABackend(false, false)"))
+        pushfirst!(ast_top.args, Meta.parse("using CUDA"))
+    elseif target_backend == "CPU"
+        pushfirst!(ast_top.args, Meta.parse("backend = CPU()"))
+    elseif target_backend == "AMD"
+        pushfirst!(ast_top.args, Meta.parse("backend = ROCBackend()"))
+        pushfirst!(ast_top.args, Meta.parse("using AMDGPU"))
+    elseif target_backend == "ONEAPI"
+        pushfirst!(ast_top.args, Meta.parse("backend = oneAPIBackend()"))
+        pushfirst!(ast_top.args, Meta.parse("using oneAPI"))
+    elseif target_backend == "METAL"
+        pushfirst!(ast_top.args, Meta.parse("backend = MetalBackend()"))
+        pushfirst!(ast_top.args, Meta.parse("using Metal"))
+    else 
+        println("Backend not recognized")
+    end
+
+    pushfirst!(ast_top.args, Expr(:using, Expr(:., :., :KAUtils)))
+    pushfirst!(ast_top.args, Expr(:call, :include, String(@__DIR__) * "/KAUtils.jl"))
+    pushfirst!(ast_top.args, Expr(:using, Expr(:., :KernelAbstractions)))
 
     ast_top = MacroTools.striplines(ast_top)
     return expr_list_to_string(ast_top.args) #necessary to remove the initial block.
@@ -407,6 +420,8 @@ end
  
 file_input = open(ARGS[1], "r")
 file_output = open(ARGS[2], "w")
+target_backend = ARGS[3]
+
 
 str = read(file_input, String)
 write(file_output, replace_cuda("begin " * str * " end"))
