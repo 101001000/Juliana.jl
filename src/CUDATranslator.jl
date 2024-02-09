@@ -234,7 +234,7 @@ function generate_kernel_call(expr)
 
     first_call = Expr(:call, fun_call.args[1], :backend, threads)
 
-    ndrange_par = Expr(:kw, :ndrange, Expr(:call, :*, blocks, threads))
+    ndrange_par = Expr(:kw, :ndrange, Expr(:call, :.*, blocks, threads))
 
     second_call = Expr(:call, first_call, fun_call.args[2:end]..., ndrange_par)
 
