@@ -198,6 +198,8 @@ end
 
 function generate_kernel_call(expr)
 
+    @assert expr.head == :macrocall
+
     fun_call = nothing
     threads = nothing
     blocks = nothing
@@ -212,22 +214,19 @@ function generate_kernel_call(expr)
         if arg.head == Symbol("=")
             for i in eachindex(arg.args)
                 subarg = arg.args[i]
-                if subarg == Symbol("threads")
+                if subarg == Symbol("threads") && isnothing(threads) 
                     threads = arg.args[i+1]
                 end
-                if subarg == Symbol("blocks")
+                if subarg == Symbol("blocks") && isnothing(blocks) 
                     blocks = arg.args[i+1]
                 end
             end
         end
     end
 
-    blocks_x = blocks.args[1]
-    blocks_y = blocks.args[2]
-
     first_call = Expr(:call, fun_call.args[1], :backend, threads)
 
-    ndrange_par = Expr(:kw, :ndrange, Expr(:tuple, Expr(:call, :*, blocks_x, threads), Expr(:call, :*, blocks_y, threads)))
+    ndrange_par = Expr(:kw, :ndrange, Expr(:call, :*, blocks, threads))
 
     second_call = Expr(:call, first_call, fun_call.args[2:end]..., ndrange_par)
 
@@ -268,6 +267,14 @@ function expr_replacer(expr)
         symbol_replace!(new_expr, "CUDA", "KernelAbstractions")
         return new_expr
     elseif expr_identify_1(expr, "CUDA.CuArray{Float32}")
+        new_expr = copy(expr)
+        symbol_replace!(new_expr, "CUDA", "KAUtils")
+        symbol_replace!(new_expr, "CuArray", "ArrayConstructor")
+        insert!(new_expr.args, 2, Symbol("backend"))
+        insert!(new_expr.args, 3, extract_type_from_curly_call(expr))
+        new_expr.args[1] = uncurlyfy(new_expr.args[1])
+        return new_expr
+    elseif expr_identify_1(expr, "CUDA.CuArray{Bool}") ##TODO, generalize types
         new_expr = copy(expr)
         symbol_replace!(new_expr, "CUDA", "KAUtils")
         symbol_replace!(new_expr, "CuArray", "ArrayConstructor")
