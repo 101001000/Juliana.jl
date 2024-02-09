@@ -231,8 +231,10 @@ function generate_kernel_call(expr)
             end
         end
     end
+    
+    convert_call = Expr(:call, :convert, :Int64, threads)
 
-    first_call = Expr(:call, fun_call.args[1], :backend, Expr(:call, :Int64, threads))
+    first_call = Expr(:call, fun_call.args[1], :backend, convert_call)
 
     ndrange_par = Expr(:kw, :ndrange, Expr(:call, :.*, blocks, threads))
 
