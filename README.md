@@ -12,13 +12,14 @@ Usage:
 ```
 
 Working [Julia Rodinia](https://github.com/JuliaParallel/rodinia/tree/master/julia_cuda) benchmarks:
-- [ ] backprop
+- [ ] backprop -> requires multifile
 - [x] bfs
-- [ ] hotspot
-- [ ] leukocyte
-- [ ] lud
+- [ ] hotspot -> requires shared memory
+- [ ] leukocyte -> requires multifile
+- [ ] lud -> requires multifile
 - [x] nn
-- [ ] nw
-- [ ] particlefilter
-- [ ] pathfinder
-- [ ] streamcluster
+- [ ] nw -> requires multifile
+- [ ] particlefilter_naive
+- [ ] particlefilter_double -> requires shared memory
+- [ ] pathfinder -> requires shared_memory
+- [ ] streamcluster -> requires multifile
