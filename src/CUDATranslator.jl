@@ -98,6 +98,14 @@ function expr_identify_1(expr, str)
     end
 end
 
+function expr_identify_1_1(expr, str)
+    try    
+        return expr_to_string(expr.args[1].args[1]) == str
+    catch
+        return false
+    end
+end
+
 function expr_identify_any(expr, str)
     res = false
     try
@@ -266,28 +274,22 @@ function expr_replacer(expr)
         new_expr = copy(expr)
         symbol_replace!(new_expr, "CUDA", "KernelAbstractions")
         return new_expr
-    elseif expr_identify_1(expr, "CUDA.CuArray{Float32}")
-        new_expr = copy(expr)
-        symbol_replace!(new_expr, "CUDA", "KAUtils")
-        symbol_replace!(new_expr, "CuArray", "ArrayConstructor")
-        insert!(new_expr.args, 2, Symbol("backend"))
-        insert!(new_expr.args, 3, extract_type_from_curly_call(expr))
-        new_expr.args[1] = uncurlyfy(new_expr.args[1])
-        return new_expr
-    elseif expr_identify_1(expr, "CUDA.CuArray{Bool}") ##TODO, generalize types
-        new_expr = copy(expr)
-        symbol_replace!(new_expr, "CUDA", "KAUtils")
-        symbol_replace!(new_expr, "CuArray", "ArrayConstructor")
-        insert!(new_expr.args, 2, Symbol("backend"))
-        insert!(new_expr.args, 3, extract_type_from_curly_call(expr))
-        new_expr.args[1] = uncurlyfy(new_expr.args[1])
-        return new_expr
+    elseif expr_identify_1_1(expr, "CUDA.CuArray")
+        if expr.args[1].head == :curly
+            new_expr = copy(expr)
+            symbol_replace!(new_expr.args[1], "CUDA", "KAUtils")
+            symbol_replace!(new_expr.args[1], "CuArray", "ArrayConstructor")
+            insert!(new_expr.args, 2, Symbol("backend"))
+            insert!(new_expr.args, 3, extract_type_from_curly_call(expr))
+            new_expr.args[1] = uncurlyfy(new_expr.args[1])
+            return new_expr
+        end
     elseif expr_identify_1(expr, "CUDA.CuArray")
         new_expr = copy(expr)
         symbol_replace!(new_expr, "CUDA", "KAUtils")
         symbol_replace!(new_expr, "CuArray", "ArrayConstructor")
         insert!(new_expr.args, 2, Symbol("backend"))
-        return new_expr
+        return new_expr       
     elseif expr_identify_1(expr, """CUDA.var\"@cuda\"""")
         push!(kernel_ids, extract_kernel_name_from_call(expr))
         return generate_kernel_call(expr)
