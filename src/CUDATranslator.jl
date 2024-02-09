@@ -270,7 +270,7 @@ function expr_replacer(expr)
         symbol_replace!(new_expr, "CUDA", "KernelAbstractions")
         push!(new_expr.args, Symbol("backend") )
         return new_expr
-    elseif expr_identify(expr, "CUDA.sqrt")
+    elseif expr_identify(expr, "CUDA.sqrt") 
         new_expr = copy(expr)
         symbol_replace!(new_expr, "CUDA", "KernelAbstractions")
         return new_expr
@@ -297,6 +297,12 @@ function expr_replacer(expr)
         return Expr(:., :KernelAbstractions)
     elseif expr_identify(expr, """\$(Expr(:., :CUDA))""")
         return Expr(:., :KernelAbstractions)
+
+    
+    elseif expr_identify(expr, "CUDA.sync_threads()")
+        return Expr(:macrocall, Symbol("@synchronize"), LineNumberNode(1)) #TODO add KernelAbstractions namespace
+
+
 
     ## FORCED VALUES TODO, MAKE THIS PARAMETRIC
     elseif expr_identify(expr, "CUDA.attribute(dev, CUDA.DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)")
