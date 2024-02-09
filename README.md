@@ -1,2 +1,3 @@
-# juliana
-Julia Unification Layer for Intel, AMD, Nvidia and Apple
+# JULIANA (**J**ulia **U**nification **L**ayer for **I**ntel, **A**MD, **N**vidia and **A**pple)
+
+
