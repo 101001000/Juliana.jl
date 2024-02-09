@@ -14,12 +14,11 @@ Usage:
 Working [Julia Rodinia](https://github.com/JuliaParallel/rodinia/tree/master/julia_cuda) benchmarks:
 - [ ] backprop -> requires multifile
 - [x] bfs
-- [ ] hotspot -> requires shared memory
+- [x] hotspot
 - [ ] leukocyte -> requires multifile
 - [ ] lud -> requires multifile
 - [x] nn
 - [ ] nw -> requires multifile
-- [ ] particlefilter_naive
-- [ ] particlefilter_double -> requires shared memory
-- [ ] pathfinder -> requires shared_memory
+- [x] particlefilter_double
+- [x] pathfinder
 - [ ] streamcluster -> requires multifile
