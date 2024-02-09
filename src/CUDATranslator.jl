@@ -303,6 +303,11 @@ function expr_replacer(expr)
         return Expr(:macrocall, Symbol("@synchronize"), LineNumberNode(1)) #TODO add KernelAbstractions namespace
 
 
+    elseif expr_identify_1(expr, """CUDA.var\"@cuStaticSharedMem\"""")
+        T = expr.args[3]
+        dims = expr.args[4]
+        return Expr(:macrocall, Symbol("@localmem"), LineNumberNode(1), T, dims) #TODO add KernelAbstractions namespace
+
 
     ## FORCED VALUES TODO, MAKE THIS PARAMETRIC
     elseif expr_identify(expr, "CUDA.attribute(dev, CUDA.DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)")
