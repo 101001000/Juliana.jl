@@ -232,7 +232,7 @@ function generate_kernel_call(expr)
         end
     end
     
-    convert_call = Expr(:call, :convert, :Int64, threads)
+    convert_call = Expr(:., :convert, Expr(:tuple, :Int64, threads))
 
     first_call = Expr(:call, fun_call.args[1], :backend, convert_call)
 
@@ -276,7 +276,9 @@ function expr_replacer(expr)
         new_expr = copy(expr)
         symbol_replace!(new_expr, "CUDA", "KernelAbstractions")
         return new_expr
-    elseif expr_identify_1_1(expr, "CUDA.CuArray")
+
+    #ARRAY CURLY CONSTRUCTOR
+    elseif expr_identify_1_1(expr, "CUDA.CuArray") && expr.head == :call
         if expr.args[1].head == :curly
             new_expr = copy(expr)
             symbol_replace!(new_expr.args[1], "CUDA", "KAUtils")
@@ -286,12 +288,20 @@ function expr_replacer(expr)
             new_expr.args[1] = uncurlyfy(new_expr.args[1])
             return new_expr
         end
-    elseif expr_identify_1(expr, "CUDA.CuArray")
+    # ARRAY TYPE
+    elseif expr_identify_1(expr, "CUDA.CuArray") && expr.head == :curly
+        new_expr = copy(expr)   
+        symbol_replace!(new_expr.args[1], "CUDA", "GPUArrays")
+        symbol_replace!(new_expr.args[1], "CuArray", "AbstractGPUArray")
+        return new_expr            
+    #ARRAY CONSTRUCTOR
+    elseif expr_identify_1(expr, "CUDA.CuArray") && expr.head == :call
         new_expr = copy(expr)
         symbol_replace!(new_expr, "CUDA", "KAUtils")
         symbol_replace!(new_expr, "CuArray", "ArrayConstructor")
         insert!(new_expr.args, 2, Symbol("backend"))
         return new_expr       
+
     elseif expr_identify_1(expr, """CUDA.var\"@cuda\"""")
         push!(kernel_ids, extract_kernel_name_from_call(expr))
         return generate_kernel_call(expr)
@@ -367,7 +377,7 @@ end
 
 function function_call_is_in_cuda_namespace(expr)
     @assert typeof(expr) == Expr
-    @assert expr.head == Symbol("call") || expr.head == Symbol("macrocall")
+    @assert expr.head == Symbol("call") || expr.head == Symbol("macrocall") || expr.head == :curly
     n = names(CUDA)
     return uncurlyfy(expr.args[1]) in n
 end
@@ -432,6 +442,7 @@ function replace_cuda(str)
 
     pushfirst!(ast_top.args, Expr(:using, Expr(:., :., :KAUtils)))
     pushfirst!(ast_top.args, Expr(:call, :include, String(@__DIR__) * "/KAUtils.jl"))
+    pushfirst!(ast_top.args, Expr(:using, Expr(:., :GPUArrays)))
     pushfirst!(ast_top.args, Expr(:using, Expr(:., :KernelAbstractions)))
 
     ast_top = MacroTools.striplines(ast_top)
