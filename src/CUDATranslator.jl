@@ -232,7 +232,7 @@ function generate_kernel_call(expr)
         end
     end
 
-    first_call = Expr(:call, fun_call.args[1], :backend, threads)
+    first_call = Expr(:call, fun_call.args[1], :backend, Expr(:call, :Int64, threads))
 
     ndrange_par = Expr(:kw, :ndrange, Expr(:call, :.*, blocks, threads))
 
