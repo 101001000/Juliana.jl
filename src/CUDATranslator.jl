@@ -67,6 +67,17 @@ function add_kernel_macro!(expr, sym)
     end
 end
 
+function replace_interpolation(str)
+    pattern = r"\$\((Expr\(:\$, :\w+\))\)"
+    inside_pattern = r"\$\(Expr\(:\$, :(.*?)\)\)"
+
+    for m in eachmatch(pattern, str)
+        new_str = match(inside_pattern, m.match).captures[1]
+        str = replace(str, m.match => "\$" * new_str)
+    end
+
+    return str
+end
 
 function expr_to_string(expr)
     io = IOBuffer()
@@ -446,7 +457,8 @@ function replace_cuda(str)
     pushfirst!(ast_top.args, Expr(:using, Expr(:., :KernelAbstractions)))
 
     ast_top = MacroTools.striplines(ast_top)
-    return expr_list_to_string(ast_top.args) #necessary to remove the initial block.
+    str = expr_list_to_string(ast_top.args)
+    return replace_interpolation(str)
 end
 
 
