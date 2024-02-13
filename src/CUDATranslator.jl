@@ -236,7 +236,7 @@ function generate_kernel_call(expr)
 
     first_call = Expr(:call, fun_call.args[1], :backend, convert_call)
 
-    ndrange_par = Expr(:kw, :ndrange, Expr(:call, :.*, blocks, threads))
+    ndrange_par = Expr(:kw, :ndrange, Expr(:call, Expr(:., :KAUtils, QuoteNode(:tuple_mult)), blocks, threads))
 
     second_call = Expr(:call, first_call, fun_call.args[2:end]..., ndrange_par)
 
@@ -396,7 +396,7 @@ function explicit_using_replace!(expr)
             continue
         end
 
-        if arg.head == Symbol("call") || arg.head == Symbol("macrocall")
+        if arg.head == Symbol("call") || arg.head == Symbol("macrocall") || arg.head == Symbol("curly")
             if function_call_is_in_cuda_namespace(arg)
                 expr.args[i] = add_namespace(arg, "CUDA") 
             end
