@@ -245,11 +245,9 @@ function generate_kernel_call(expr)
     
     convert_call = Expr(:., :convert, Expr(:tuple, :Int64, threads))
 
-    first_call = Expr(:call, fun_call.args[1], :backend, convert_call)
+    first_call = Expr(:call, fun_call.args[1], :backend, convert_call, Expr(:call, Expr(:., :KAUtils, QuoteNode(:tuple_mult)), blocks, threads))
 
-    ndrange_par = Expr(:kw, :ndrange, Expr(:call, Expr(:., :KAUtils, QuoteNode(:tuple_mult)), blocks, threads))
-
-    second_call = Expr(:call, first_call, fun_call.args[2:end]..., ndrange_par)
+    second_call = Expr(:call, first_call, fun_call.args[2:end]...)
 
     return second_call
 end
