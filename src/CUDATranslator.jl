@@ -44,7 +44,7 @@ import CUDA
 #
 
 
-kernel_ids = []
+kernel_ids = Set()
 target_backend = ""
 
 
