@@ -211,8 +211,8 @@ function namespace_replacer(expr)
             expr.args[i] = new_expr
         end
 
-        if typeof(arg) == Expr
-            namespace_replacer(arg)
+        if typeof(expr.args[i]) == Expr
+            namespace_replacer(expr.args[i])
         end 
 
     end
@@ -333,6 +333,8 @@ function expr_replacer(expr)
     elseif expr_identify_1(expr, """CUDA.var\"@cuda\"""")
         push!(kernel_ids, extract_kernel_name_from_call(expr))
         return generate_kernel_call(expr)
+
+
     elseif expr_identify(expr, """\$(Expr(:., :NVTX))""")
         return Expr(:., :KernelAbstractions)
     elseif expr_identify(expr, """\$(Expr(:., :CUDA))""")
@@ -362,6 +364,10 @@ function expr_replacer(expr)
         println("Dynamic Arrays not allowed inside KernelAbstractions kernels. Converted to local static memory. Set the dimensions statically if possible or it wont compile. OFFSET CROPPED")
         return Expr(:macrocall, Symbol("@localmem"), LineNumberNode(1), expr.args[2], expr.args[3])
         
+    elseif expr_identify_1(expr, """CUDA.var\"@sync\"""") ## TODO Support for blocking or not blocking sync!
+        println("CUDA.@sync forced to be blocking")
+        return Expr(:block, expr.args[3], Meta.parse("KernelAbstractions.synchronize(backend)"))
+
     ## COMMENT VALUES
     elseif expr_identify_line(expr, "CUDA.var\"@profile\"")  ## TODO, EMIT WARNING
         return Meta.parse("""KAUtils.@comment "Line removed by incompatibility"  """ )
