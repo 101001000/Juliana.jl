@@ -8,7 +8,7 @@ Translation from CUDA -> KernelAbstraction is the only translation supported rig
 
 Usage: 
 ```console
-~$ julia fileinput.jl fileoutput.jl (CUDA|ONEAPI|METAL|CPU|AMD)
+~$ julia main.jl fileinput.jl fileoutput.jl (CUDA|ONEAPI|METAL|CPU|AMD)
 ```
 
 Working [Julia Rodinia](https://github.com/JuliaParallel/rodinia/tree/master/julia_cuda) benchmarks:
@@ -26,7 +26,7 @@ Working [Julia Rodinia](https://github.com/JuliaParallel/rodinia/tree/master/jul
 
 Working [ExaTronKernels](https://github.com/exanauts/ExaTronKernels.jl) benchmarks:
 
-It's necessary to remove the comment from CUDA.jl at the beginning of the file quoted with """ as juliana doesn´t support multiline comments yet, and It's also necessary to mark the n variable as const, and remove n as an argument for all functions as KernelAbstractions doesn´t allow dynamic shared memory allocation. All this changes are reflected in my [ExaTronKernels fork](https://github.com/exanauts/ExaTronKernels.jl)
+It's necessary to remove the comment from CUDA.jl at the beginning of the file quoted with """ as juliana doesn´t support multiline comments yet, and It's also necessary to mark the n variable as const, and remove n as an argument for all functions as KernelAbstractions doesn´t allow dynamic shared memory allocation. All this changes are reflected in my [ExaTronKernels fork](https://github.com/101001000/ExaTronKernels.jl)
 
 - [x] dicf 
 - [x] dicfs 
