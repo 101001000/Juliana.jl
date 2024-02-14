@@ -98,6 +98,23 @@ function replace_interpolation(str)
     return str
 end
 
+
+
+function replace_comments(str)
+    regex_pattern = r"#.*"
+    replace_comment = match -> ";KAUtils.@comment \"$match\""
+    modified_code = replace(str, regex_pattern => replace_comment; count=typemax(Int))
+    return modified_code
+end
+
+function undo_replace_comments(str)
+    regex_pattern = r"KAUtils\.@comment \"#(.*)\""
+    modified_code = replace(str, regex_pattern => s"# \1"; count=typemax(Int))
+    return modified_code
+
+end
+
+
 function expr_to_string(expr)
     io = IOBuffer()
     Base.show_unquoted(io, expr, 0, -1)
@@ -449,6 +466,7 @@ end
 
 function replace_cuda(str)
 
+    str = replace_comments(str)
     ast_top = Meta.parse(str)
     explicit_using_replace!(ast_top)
     namespace_replacer(ast_top)
@@ -486,7 +504,8 @@ function replace_cuda(str)
 
     ast_top = MacroTools.striplines(ast_top)
     str = expr_list_to_string(ast_top.args)
-    return replace_interpolation(str)
+    str = replace_interpolation(str)
+    str = undo_replace_comments(str)
 end
 
 
