@@ -338,6 +338,11 @@ function expr_replacer(expr)
     elseif expr_identify_1(expr, "CUDA.available_memory") 
         return Meta.parse("1024*1024*1024")
 
+    ##
+    elseif expr_identify_1(expr, "CUDA.CuDynamicSharedArray")
+        println("Dynamic Arrays not allowed inside KernelAbstractions kernels. Converted to local static memory. Set the dimensions statically if possible or it wont compile")
+        return Expr(:macrocall, Symbol("@localmem"), LineNumberNode(1), expr.args[2], expr.args[3])
+        
     ## COMMENT VALUES
     elseif expr_identify_line(expr, "CUDA.var\"@profile\"")  ## TODO, EMIT WARNING
         return Meta.parse("""KAUtils.@comment "Line removed by incompatibility"  """ )
