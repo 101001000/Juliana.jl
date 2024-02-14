@@ -59,18 +59,30 @@ function extract_kernel_name_from_call(expr)
     display("ERROR EXTRACTING THE NAME FROM THE KERNEL")
 end
 
-function add_kernel_macro!(expr, sym)
+function remove_farg_types!(expr)
+    for i in eachindex(expr.args[1].args)
+        if typeof(expr.args[1].args[i]) != Expr 
+            continue
+        end
+        if expr.args[1].args[i].head == Symbol("::")
+            expr.args[1].args[i] = expr.args[1].args[i].args[1]
+        end
+    end
+end
+
+function kernelize_function!(expr, sym)
     for i in eachindex(expr.args)
         if typeof(expr.args[i]) != Expr 
             continue
         end
         if expr.args[i].head == :function
             if(expr.args[i].args[1].args[1] == sym)
+                remove_farg_types!(expr.args[i])
                 expr.args[i] = Expr(:macrocall, Symbol("@kernel"), LineNumberNode(1), expr.args[i])
                 continue
             end
         end
-        add_kernel_macro!(expr.args[i], sym)
+        kernelize_function!(expr.args[i], sym)
     end
 end
 
@@ -437,7 +449,7 @@ function replace_cuda(str)
     warning_generator(ast_top)
 
     for id in kernel_ids
-        add_kernel_macro!(ast_top, id)
+        kernelize_function!(ast_top, id)
     end
 
     #string_representation = "@kernel " * string_representation TODO 
