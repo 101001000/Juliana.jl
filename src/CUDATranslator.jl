@@ -49,7 +49,14 @@ target_backend = ""
 
 
 function extract_kernel_name_from_call(expr)
-    return expr.args[5].args[1] #TODO, hacer esto bien
+    for arg in expr.args
+        if arg isa Expr
+            if arg.head == :call
+                return arg.args[1]
+            end
+        end
+    end
+    display("ERROR EXTRACTING THE NAME FROM THE KERNEL")
 end
 
 function add_kernel_macro!(expr, sym)
@@ -340,7 +347,7 @@ function expr_replacer(expr)
 
     ##
     elseif expr_identify_1(expr, "CUDA.CuDynamicSharedArray")
-        println("Dynamic Arrays not allowed inside KernelAbstractions kernels. Converted to local static memory. Set the dimensions statically if possible or it wont compile")
+        println("Dynamic Arrays not allowed inside KernelAbstractions kernels. Converted to local static memory. Set the dimensions statically if possible or it wont compile. OFFSET CROPPED")
         return Expr(:macrocall, Symbol("@localmem"), LineNumberNode(1), expr.args[2], expr.args[3])
         
     ## COMMENT VALUES
