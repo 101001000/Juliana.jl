@@ -117,13 +117,13 @@ end
 
 function replace_comments(str)
     regex_pattern = r"#.*"
-    replace_comment = match -> ";KAUtils.@comment \"$match\""
+    replace_comment = match -> ";KAUtils.@comment \"\"\"$match\"\"\""
     modified_code = replace(str, regex_pattern => replace_comment; count=typemax(Int))
     return modified_code
 end
 
 function undo_replace_comments(str)
-    regex_pattern = r"KAUtils\.@comment \"#(.*)\""
+    regex_pattern = r"KAUtils\.@comment \"\"\"#(.*)\"\"\""
     modified_code = replace(str, regex_pattern => s"# \1"; count=typemax(Int))
     return modified_code
 
