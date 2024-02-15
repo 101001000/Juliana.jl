@@ -516,7 +516,7 @@ function replace_cuda_2(ast_top, target_backend)
     ast_top = MacroTools.striplines(ast_top)
     str = expr_list_to_string(ast_top.args)
     str = replace_interpolation(str)
-    str = undo_replace_comments(str)
+    #str = undo_replace_comments(str)
 end
 
 

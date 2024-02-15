@@ -12,7 +12,7 @@ for file_name in ARGS[1:end-2]
     str = "begin " * str * " end"
     close(file_input)
 
-    str = replace_comments(str)
+    #str = replace_comments(str)
     ast = Meta.parse(str)
 
     explicit_using_replace!(ast)
