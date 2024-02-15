@@ -1,13 +1,44 @@
 include("CUDATranslator.jl")
 
- 
-file_input = open(ARGS[1], "r")
-file_output = open(ARGS[2], "w")
-target_backend = ARGS[3]
+kernel_ids = Set()
+asts = []
+
+for file_name in ARGS[1:end-2]
+
+    println("Loading ", file_name)
+
+    file_input = open(file_name, "r")
+    str = read(file_input, String)
+    str = "begin " * str * " end"
+    close(file_input)
+
+    str = replace_comments(str)
+    ast = Meta.parse(str)
+
+    explicit_using_replace!(ast)
+    extract_kernel_names!(ast, kernel_ids)
+    ast = replace_cuda_1(ast)
+
+    push!(asts, ast)
+end
+
+for id in kernel_ids
+    for ast in asts
+        kernelize_function!(ast, id)
+    end
+end
 
 
-str = read(file_input, String)
-write(file_output, replace_cuda("begin " * str * " end"))
+for i in eachindex(ARGS[1:end-2])
 
-close(file_input)
-close(file_output)
+    file_input = ARGS[i]
+
+    println("Outputing ", ARGS[end-1] * basename(file_input))
+
+    str = replace_cuda_2(asts[i], ARGS[end])
+    #str = string(i)
+    file_output = open(ARGS[end-1] * basename(file_input), "w")
+    write(file_output, str)
+    close(file_output)
+
+end

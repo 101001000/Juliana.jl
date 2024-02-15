@@ -59,6 +59,21 @@ function extract_kernel_name_from_call(expr)
     display("ERROR EXTRACTING THE NAME FROM THE KERNEL")
 end
 
+
+function extract_kernel_names!(expr, ids)
+    if typeof(expr) != Expr
+        return
+    end
+    if expr_identify_1(expr, """CUDA.var\"@cuda\"""")
+        push!(ids, extract_kernel_name_from_call(expr))
+        println("Extracting from ", typeof(expr), expr)
+        return
+    end
+    for i in eachindex(expr.args)
+        extract_kernel_names!(expr.args[i], ids)   
+    end
+end
+
 function remove_farg_types!(expr)
     for i in eachindex(expr.args[1].args)
         if typeof(expr.args[1].args[i]) != Expr 
@@ -348,7 +363,7 @@ function expr_replacer(expr)
         return new_expr       
 
     elseif expr_identify_1(expr, """CUDA.var\"@cuda\"""")
-        push!(kernel_ids, extract_kernel_name_from_call(expr))
+        #push!(kernel_ids, extract_kernel_name_from_call(expr))
         return generate_kernel_call(expr)
 
 
@@ -464,20 +479,16 @@ end
 
 
 
-function replace_cuda(str)
-
-    str = replace_comments(str)
-    ast_top = Meta.parse(str)
-    explicit_using_replace!(ast_top)
+function replace_cuda_1(ast_top)
+    
     namespace_replacer(ast_top)
     warning_generator(ast_top)
 
-    for id in kernel_ids
-        kernelize_function!(ast_top, id)
-    end
+    return ast_top
+end
 
-    #string_representation = "@kernel " * string_representation TODO 
 
+function replace_cuda_2(ast_top, target_backend)
 
     if target_backend == "CUDA"
         pushfirst!(ast_top.args, Meta.parse("backend = CUDABackend(false, false)"))
@@ -507,9 +518,6 @@ function replace_cuda(str)
     str = replace_interpolation(str)
     str = undo_replace_comments(str)
 end
-
-
-
 
 
 
