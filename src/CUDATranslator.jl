@@ -400,6 +400,10 @@ function expr_replacer(expr)
         println("CUDA.@sync forced to be blocking")
         return Expr(:block, expr.args[3], Meta.parse("KernelAbstractions.synchronize(backend)"))
 
+
+    elseif expr_identify_1(expr, "CUDA.ldg") # TODO make the array constant!
+        return Expr(:ref, expr.args[2], expr.args[3])
+
     ## COMMENT VALUES
     elseif expr_identify_line(expr, "CUDA.var\"@profile\"")  ## TODO, EMIT WARNING
         return Meta.parse("""KAUtils.@comment "Line removed by incompatibility"  """ )
