@@ -8,20 +8,20 @@ Translation from CUDA -> KernelAbstraction is the only translation supported rig
 
 Usage: 
 ```console
-~$ julia main.jl fileinput.jl fileoutput.jl (CUDA|ONEAPI|METAL|CPU|AMD)
+~$ julia main.jl fileinput1.jl fileinput2.jl fileoutput.jl (CUDA|ONEAPI|METAL|CPU|AMD)
 ```
 
 Working [Julia Rodinia](https://github.com/JuliaParallel/rodinia/tree/master/julia_cuda) benchmarks:
 - [x] backprop
 - [x] bfs
-- [x] hotspot
+- [ ] hotspot -> comments separated by a comma issues
 - [ ] leukocyte -> requires multicomment with #= % % =# and CUDA.ldg support
 - [ ] lud -> requires handling CUDA.@elapsed
 - [x] nn
-- [ ] nw -> passes with discrepancies with the result
-- [x] particlefilter_double
+- [x] nw
+- [ ] particlefilter_double -> comments separated by a comma issues
 - [x] pathfinder
-- [x] streamcluster
+- [ ] streamcluster -> comments separated by a comma issues
 
 
 Working [ExaTronKernels](https://github.com/exanauts/ExaTronKernels.jl) benchmarks:
