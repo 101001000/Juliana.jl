@@ -123,7 +123,7 @@ function replace_comments(str)
 end
 
 function undo_replace_comments(str)
-    regex_pattern = r"KAUtils\.@comment \"\"\"#(.*)\"\"\""
+    regex_pattern = r"KAUtils\.@comment \"#(.*)\""
     modified_code = replace(str, regex_pattern => s"# \1"; count=typemax(Int))
     return modified_code
 
