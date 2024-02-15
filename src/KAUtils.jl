@@ -40,6 +40,7 @@ module KAUtils
         (a...,)
      end
 
+    # Multiply two tuples (making scalars 1 dim tuples) elementwise, and if they have different size, return the rest of the elements of the biggest tuple unchanged.
     function tuple_mult(A, B)
 
         lA = length(A) == 1 ? [A[1]] : collect(A)
