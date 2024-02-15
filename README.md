@@ -12,16 +12,16 @@ Usage:
 ```
 
 Working [Julia Rodinia](https://github.com/JuliaParallel/rodinia/tree/master/julia_cuda) benchmarks:
-- [ ] backprop -> requires multifile
+- [x] backprop
 - [x] bfs
 - [x] hotspot
-- [ ] leukocyte -> requires multifile
-- [ ] lud -> requires multifile
+- [ ] leukocyte -> requires multicomment with #= % % =# and CUDA.ldg support
+- [ ] lud -> requires handling CUDA.@elapsed
 - [x] nn
-- [ ] nw -> requires multifile
+- [ ] nw -> passes with discrepancies with the result
 - [x] particlefilter_double
 - [x] pathfinder
-- [ ] streamcluster -> requires multifile
+- [x] streamcluster
 
 
 Working [ExaTronKernels](https://github.com/exanauts/ExaTronKernels.jl) benchmarks:
