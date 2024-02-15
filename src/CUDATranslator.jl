@@ -332,7 +332,7 @@ function expr_replacer(expr)
         symbol_replace!(new_expr, "CUDA", "KernelAbstractions")
         push!(new_expr.args, Symbol("backend") )
         return new_expr
-    elseif expr_identify(expr, "CUDA.sqrt") || expr_identify(expr, "CUDA.abs") || expr_identify(expr, "CUDA.exp") || expr_identify(expr, "CUDA.ceil") || expr_identify(expr, "CUDA.log")  || expr_identify(expr, "CUDA.cos")
+    elseif expr_identify(expr, "CUDA.sqrt") || expr_identify(expr, "CUDA.abs") || expr_identify(expr, "CUDA.exp") || expr_identify(expr, "CUDA.ceil") || expr_identify(expr, "CUDA.log")  || expr_identify(expr, "CUDA.cos") || expr_identify(expr, "CUDA.atan")
         new_expr = copy(expr)
         symbol_replace!(new_expr, "CUDA", "KernelAbstractions")
         return new_expr
