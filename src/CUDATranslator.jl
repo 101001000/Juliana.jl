@@ -44,9 +44,7 @@ import CUDA
 #
 
 
-kernel_ids = Set()
-target_backend = ""
-
+function_call_id = Symbol("") # A terrible global variable which keeps track of the function id.
 
 function extract_kernel_name_from_call(expr)
     for arg in expr.args
@@ -84,6 +82,28 @@ function remove_farg_types!(expr)
     end
 end
 
+
+function extract_const_vars(expr, s)
+    if expr isa Expr
+        for arg in expr.args
+            if expr_identify_1(arg, "CUDA.ldg")
+                push!(s,arg.args[2])
+                continue
+            end
+            extract_const_vars(arg, s)
+        end
+    end
+    return s
+end
+
+function constantify_function!(expr, args_ids)
+    for i in eachindex(expr.args[1].args[2:end])
+        if expr.args[1].args[i] in args_ids
+            expr.args[1].args[i] = Expr(:macrocall, Symbol("@Const"), LineNumberNode(1), expr.args[1].args[i])
+        end
+    end
+end
+
 function kernelize_function!(expr, sym)
     for i in eachindex(expr.args)
         if typeof(expr.args[i]) != Expr 
@@ -92,6 +112,12 @@ function kernelize_function!(expr, sym)
         if expr.args[i].head == :function
             if(expr.args[i].args[1].args[1] == sym)
                 remove_farg_types!(expr.args[i])
+
+                var_ids = Set()
+
+                extract_const_vars(expr.args[i], var_ids)
+                constantify_function!(expr.args[i], var_ids)
+
                 expr.args[i] = Expr(:macrocall, Symbol("@kernel"), LineNumberNode(1), expr.args[i])
                 continue
             end
@@ -228,6 +254,14 @@ function warning_generator(expr)
 end
 
 function namespace_replacer(expr)
+
+    try
+        if expr.head == :call
+            function_call_id = expr.args[1]
+        end
+    catch
+    end
+
     for i in eachindex(expr.args)
 
         arg = expr.args[i]
@@ -362,7 +396,6 @@ function expr_replacer(expr)
         return new_expr       
 
     elseif expr_identify_1(expr, """CUDA.var\"@cuda\"""")
-        #push!(kernel_ids, extract_kernel_name_from_call(expr))
         return generate_kernel_call(expr)
 
     

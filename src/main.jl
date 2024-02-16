@@ -17,8 +17,6 @@ for file_name in ARGS[1:end-2]
 
     explicit_using_replace!(ast)
     extract_kernel_names!(ast, kernel_ids)
-    ast = replace_cuda_1(ast)
-
     push!(asts, ast)
 end
 
@@ -35,7 +33,9 @@ for i in eachindex(ARGS[1:end-2])
 
     println("Outputing ", ARGS[end-1] * basename(file_input))
 
-    str = replace_cuda_2(asts[i], ARGS[end])
+
+    ast = replace_cuda_1(asts[i])
+    str = replace_cuda_2(ast, ARGS[end])
     #str = string(i)
     file_output = open(ARGS[end-1] * basename(file_input), "w")
     write(file_output, str)
