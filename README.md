@@ -1,8 +1,5 @@
 # JULIANA (**J**ulia **U**nification **L**ayer for **I**ntel, **A**MD, **N**vidia and **A**pple)
 
-
-Only single files and a very limited feature set is supported right now.
-
 Translation from CUDA -> KernelAbstraction is the only translation supported right now.
 
 
@@ -14,14 +11,14 @@ Usage:
 Working [Julia Rodinia](https://github.com/JuliaParallel/rodinia/tree/master/julia_cuda) benchmarks:
 - [x] backprop
 - [x] bfs
-- [ ] hotspot -> comments separated by a comma issues
-- [ ] leukocyte -> requires multicomment with #= % % =# and CUDA.ldg support
-- [ ] lud -> requires handling CUDA.@elapsed
+- [x] hotspot
+- [x] leukocyte
+- [x] lud 
 - [x] nn
 - [x] nw
-- [ ] particlefilter_double -> comments separated by a comma issues
+- [x] particlefilter_double 
 - [x] pathfinder
-- [ ] streamcluster -> comments separated by a comma issues
+- [x] streamcluster
 
 
 Working [ExaTronKernels](https://github.com/exanauts/ExaTronKernels.jl) benchmarks:
