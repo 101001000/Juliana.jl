@@ -66,7 +66,6 @@ function extract_kernel_names!(expr, ids)
     end
     if expr_identify_1(expr, """CUDA.var\"@cuda\"""")
         push!(ids, extract_kernel_name_from_call(expr))
-        println("Extracting from ", typeof(expr), expr)
         return
     end
     for i in eachindex(expr.args)
