@@ -366,6 +366,13 @@ function expr_replacer(expr)
         #push!(kernel_ids, extract_kernel_name_from_call(expr))
         return generate_kernel_call(expr)
 
+    
+    elseif expr_identify_1(expr, """CUDA.var\"@cuprintf\"""")
+        return Expr(:macrocall, Symbol("@print"), LineNumberNode(1), expr.args[2:end]...)
+
+    elseif expr_identify_1(expr, """CUDA.var\"@elapsed\"""")
+        return Expr(:macrocall, Symbol("@elapsed"), LineNumberNode(1), Expr(:block, expr.args[3], Meta.parse("KernelAbstractions.synchronize(backend)")))
+
 
     elseif expr_identify(expr, """\$(Expr(:., :NVTX))""")
         return Expr(:., :KernelAbstractions)
