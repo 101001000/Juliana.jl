@@ -1,3 +1,6 @@
 [submodule "tests/rodinia"]
 	path = tests/rodinia
 	url = https://github.com/101001000/rodinia.git
+[submodule "tests/ExaTronKernels.jl"]
+	path = tests/ExaTronKernels.jl
+	url = https://github.com/101001000/ExaTronKernels.jl.git
