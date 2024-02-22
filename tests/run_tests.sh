@@ -18,3 +18,5 @@ echo Testing PathFinder
 (cd rodinia/julia_gen/pathfinder/; ./verify)
 echo Testing StreamCluster
 (cd rodinia/julia_gen/streamcluster/; ./verify)
+echo Testing ExaTronKernels
+(cd ExaTronKernels.jl/test/; julia GEN.jl)
