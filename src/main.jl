@@ -22,6 +22,7 @@ function parse_commandline()
             default = "CUDA"
         "--comments", "-c"
             help = "enable comments"
+            action = :store_true
         "--mirror", "-m"
             help = "mirror the input file structure in the output"
             action = :store_true
@@ -108,7 +109,7 @@ function main()
         str = "begin " * str * " end"
         close(file_input)
     
-        if !isnothing(parsed_args["comments"])
+        if parsed_args["comments"]
             str = replace_comments(str)
         end
         
@@ -130,7 +131,11 @@ function main()
         println("Outputing ", output_files[i])
         ast = replace_cuda_1(asts[i])
         str = replace_cuda_2(ast, parsed_args["backend"])
-        #str = string(i)
+
+        if parsed_args["comments"]
+            str = undo_replace_comments(str)
+        end
+        
         mkpath(dirname(output_files[i]))
         file_output = open(output_files[i], "w")
         write(file_output, str)
