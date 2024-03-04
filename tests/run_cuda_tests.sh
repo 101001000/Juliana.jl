@@ -1,0 +1,22 @@
+echo Testing Backprop
+(cd rodinia/julia_cuda/backprop/; ./verify)
+echo Testing BFS
+(cd rodinia/julia_cuda/bfs/; ./verify)
+echo Testing Hotspot
+(cd rodinia/julia_cuda/hotspot/; ./verify)
+echo Testing Leukocyte
+(cd rodinia/julia_cuda/leukocyte/; ./verify)
+echo Testing LUD
+(cd rodinia/julia_cuda/lud/; ./verify)
+echo Testing NN
+(cd rodinia/julia_cuda/nn/; ./verify)
+echo Testing NW
+(cd rodinia/julia_cuda/nw/; ./verify)
+echo Testing ParticleFilter
+(cd rodinia/julia_cuda/particlefilter/; ./verify)
+echo Testing PathFinder
+(cd rodinia/julia_cuda/pathfinder/; ./verify)
+echo Testing StreamCluster
+(cd rodinia/julia_cuda/streamcluster/; ./verify)
+echo Testing ExaTronKernels
+(cd ExaTronKernels.jl/test/; julia CUDA.jl)
