@@ -46,6 +46,28 @@ import CUDA
 
 function_call_id = Symbol("") # A terrible global variable which keeps track of the function id.
 
+
+
+function extract_and_empty_kernel_ass!(expr)
+    if expr isa Expr
+        if expr.head == Symbol("=")
+            if expr.args[1] == Symbol("kernel_call")
+                new_expr = copy(expr)
+                expr.head = :block  
+                expr.args = []
+                return new_expr
+            end
+        end
+        for i in eachindex(expr.args)
+            ass = extract_and_empty_kernel_ass!(expr.args[i])
+            if !isnothing(ass)
+                return ass
+            end
+        end
+    end
+    return nothing
+end
+
 function extract_kernel_name_from_call(expr)
     for arg in expr.args
         if arg isa Expr
@@ -456,6 +478,14 @@ function expr_replacer(expr)
     elseif expr_identify_1(expr, "CUDA.ldg") # TODO make the array constant!
         return Expr(:ref, expr.args[2], expr.args[3])
 
+
+    elseif expr_identify_1(expr, """var\"@benchmark\"""")
+        kernel_ass = extract_and_empty_kernel_ass!(expr)
+        if isnothing(kernel_ass)
+            return nothing
+        end
+        push!(expr.args, Expr(Symbol("="), :setup, kernel_ass))
+        return expr
     ## COMMENT VALUES
     elseif expr_identify_line(expr, "CUDA.var\"@profile\"")  ## TODO, EMIT WARNING
         return Meta.parse("""KAUtils.@comment "Line removed by incompatibility"  """ )
@@ -538,6 +568,7 @@ end
 function replace_cuda_1(ast_top)
     
     namespace_replacer(ast_top)
+    namespace_replacer(ast_top) # need to run this twice because the postprocessing step required for @benchmark.
     warning_generator(ast_top)
 
     return ast_top
