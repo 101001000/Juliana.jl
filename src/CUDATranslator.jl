@@ -429,6 +429,12 @@ function expr_replacer(expr)
         insert!(expr.args, 2, :backend)
         return expr
 
+    elseif expr_identify_1(expr, "CUDA.copy!")
+        symbol_replace!(expr, "CUDA", "KernelAbstractions")
+        symbol_replace!(expr, "copy!", "copyto!")  
+        insert!(expr.args, 2, :backend)
+        return Expr(:block, expr, Meta.parse("KernelAbstractions.synchronize(backend)"))
+
     ## FORCED VALUES TODO, MAKE THIS PARAMETRIC
     elseif expr_identify(expr, "CUDA.attribute(dev, CUDA.DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)")
         return Meta.parse("256")
