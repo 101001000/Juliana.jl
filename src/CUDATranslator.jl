@@ -424,6 +424,11 @@ function expr_replacer(expr)
         return Expr(:macrocall, Symbol("@localmem"), LineNumberNode(1), T, dims) #TODO add KernelAbstractions namespace
 
 
+    elseif expr_identify_1(expr, "CUDA.zeros") || expr_identify_1(expr, "CUDA.ones")
+        symbol_replace!(expr, "CUDA", "KernelAbstractions") 
+        insert!(expr.args, 2, :backend)
+        return expr
+
     ## FORCED VALUES TODO, MAKE THIS PARAMETRIC
     elseif expr_identify(expr, "CUDA.attribute(dev, CUDA.DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)")
         return Meta.parse("256")
