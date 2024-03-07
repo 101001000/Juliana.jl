@@ -331,9 +331,11 @@ function generate_kernel_call(expr)
 
     first_call = Expr(:call, fun_call.args[1], :backend, convert_call, Expr(:call, Expr(:., :KAUtils, QuoteNode(:tuple_mult)), blocks, threads))
 
-    second_call = Expr(:call, first_call, fun_call.args[2:end]...)
+    kernel_ass = Expr(Symbol("="), :kernel_call, first_call)
 
-    return second_call
+    second_call = Expr(:call, :kernel_call, fun_call.args[2:end]...)
+
+    return Expr(:block, kernel_ass, second_call)
 end
 
 
