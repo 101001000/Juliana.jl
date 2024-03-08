@@ -309,7 +309,7 @@ function block_cleaner!(expr)
     if expr isa Expr
         for i in eachindex(expr.args)
             if expr.args[i] isa Expr
-                if expr.args[i].head == :block
+                if expr.args[i].head == :block && expr.head == :block
                     indices = []
                     for j in eachindex(expr.args[i].args)
                         if expr.args[i].args[j] isa LineNumberNode
