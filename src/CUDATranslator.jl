@@ -72,7 +72,11 @@ function extract_kernel_name_from_call(expr)
     for arg in expr.args
         if arg isa Expr
             if arg.head == :call
-                return arg.args[1]
+                if arg.args[1] isa Symbol
+                    return arg.args[1]
+                else # in case is an interpolated kernel call
+                    return arg.args[1].args[1]
+                end
             end
         end
     end
