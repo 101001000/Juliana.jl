@@ -97,6 +97,18 @@ function extract_kernel_names!(expr, ids)
     end
 end
 
+function extract_functions!(expr, fs)
+    if typeof(expr) != Expr
+        return
+    end
+    if expr.head == :function 
+        push!(fs, expr)
+    end
+    for i in eachindex(expr.args)
+        extract_functions!(expr.args[i], fs)   
+    end
+end
+
 function remove_farg_types!(expr)
     for i in eachindex(expr.args[1].args)
         if typeof(expr.args[1].args[i]) != Expr 
@@ -130,7 +142,7 @@ function constantify_function!(expr, args_ids)
     end
 end
 
-function kernelize_function!(expr, sym)
+function kernelize_function!(expr, sym, fs)
     for i in eachindex(expr.args)
         if typeof(expr.args[i]) != Expr 
             continue
@@ -144,11 +156,74 @@ function kernelize_function!(expr, sym)
                 extract_const_vars(expr.args[i], var_ids)
                 constantify_function!(expr.args[i], var_ids)
 
+                function_call_inliner!(expr.args[i].args[2], fs)
+                function_call_inliner!(expr.args[i].args[2], fs)
+                function_call_inliner!(expr.args[i].args[2], fs)
+                function_call_inliner!(expr.args[i].args[2], fs)
+                function_call_inliner!(expr.args[i].args[2], fs)
+
                 expr.args[i] = Expr(:macrocall, Symbol("@kernel"), LineNumberNode(1), expr.args[i])
                 continue
             end
         end
-        kernelize_function!(expr.args[i], sym)
+        kernelize_function!(expr.args[i], sym, fs)
+    end
+end
+
+
+function return_remover!(expr)
+    if typeof(expr) == Expr
+        for i in eachindex(expr.args)
+            if typeof(expr.args[i]) != Expr 
+                continue
+            end
+            if expr.args[i].head == :return
+                expr.args[i] = expr.args[i].args[1]
+            end
+            return_remover!(expr.args[i])
+        end
+    end
+end
+
+
+function function_call_inliner!(expr, fs)
+
+    #TODO: ADD THE REMAINING CALL SYMBOLS
+    exclude_symbols = [Symbol(":"), Symbol("=="), Symbol("*"), Symbol("+")]
+
+    for i in eachindex(expr.args)
+        if typeof(expr.args[i]) != Expr 
+            continue
+        end
+        if expr.args[i].head == :call && !(expr.args[i].args[1] in exclude_symbols)
+            
+            for f in fs
+                if f.args[1].args[1] == expr.args[i].args[1]
+
+                    println("In function ", f.args[1].args[1])
+
+                    new_body = copy(f.args[2])
+                    
+                    #TODO: ok, this is an issue. Just removing a return is not semantically equivalent as returning the value. why? control structures.
+                    #return_remover!(new_body)
+
+                    # iterate over all the function definition arguments
+                    for j in eachindex(f.args[1].args)
+                        if j == 1 # we ignore the function call
+                            continue
+                        end
+                        # replace the function definition arguments for the call ones.
+                        println("replacing ", f.args[1].args[j], " with ", expr.args[i].args[j])
+                        symbol_replace!(new_body, f.args[1].args[j], expr.args[i].args[j])
+                    end
+
+                    expr.args[i] = Expr(:let, Expr(:block), new_body)
+                end
+            end
+            
+            continue
+        end
+        function_call_inliner!(expr.args[i], fs)
     end
 end
 

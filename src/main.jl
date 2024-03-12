@@ -98,6 +98,7 @@ function main()
     input_files, output_files = retrieve_files(parsed_args)
 
     kernel_ids = Set()
+    fs = Set()
     asts = []
 
     for file_name in input_files
@@ -117,19 +118,19 @@ function main()
     
         explicit_using_replace!(ast)
         extract_kernel_names!(ast, kernel_ids)
+        extract_functions!(ast, fs)
         push!(asts, ast)
     end
-
-    for id in kernel_ids
-        for ast in asts
-            kernelize_function!(ast, id)
-        end
-    end
-    
 
     for i in eachindex(output_files)
         println("Outputing ", output_files[i])
         ast = replace_cuda_1(asts[i])
+
+        for id in kernel_ids
+            println("Kernelizing, ", id)
+            kernelize_function!(ast, id, fs)
+        end 
+
         str = replace_cuda_2(ast, parsed_args["backend"])
 
         if parsed_args["comments"]
