@@ -441,7 +441,12 @@ function expr_replacer(expr)
         new_expr = copy(expr)   
         symbol_replace!(new_expr.args[1], "CUDA", "GPUArrays")
         symbol_replace!(new_expr.args[1], "CuArray", "AbstractGPUArray")
-        return new_expr            
+        return new_expr
+    elseif expr_identify_1(expr, "CUDA.CuDeviceArray") && expr.head == :curly
+        new_expr = copy(expr)   
+        symbol_replace!(new_expr.args[1], "CUDA", "GPUArrays")
+        symbol_replace!(new_expr.args[1], "CuDeviceArray", "AbstractGPUArray")
+        return new_expr                       
     #ARRAY CONSTRUCTOR
     elseif expr_identify_1(expr, "CUDA.CuArray") && expr.head == :call
         new_expr = copy(expr)
