@@ -156,7 +156,7 @@ function kernelize_function!(expr, sym, fs, inliner_it)
                 extract_const_vars(expr.args[i], var_ids)
                 constantify_function!(expr.args[i], var_ids)
 
-                for j = 1:inliner_it
+                for j in 1:inliner_it
                     function_call_inliner!(expr.args[i].args[2], fs)
                 end
 
@@ -169,16 +169,27 @@ function kernelize_function!(expr, sym, fs, inliner_it)
 end
 
 
-function return_remover!(expr)
+function return_remover!(expr, in_loop, retname, retlabel)
     if typeof(expr) == Expr
+        in_loop |= expr.head == :for
+        in_loop |= expr.head == :while
+        if expr.head == :let  # let resets in_loop
+            in_loop = false
+        end
         for i in eachindex(expr.args)
             if typeof(expr.args[i]) != Expr 
                 continue
             end
             if expr.args[i].head == :return
-                expr.args[i] = expr.args[i].args[1]
+                #expr.args[i] = expr.args[i].args[1]
+                #if in_loop
+                #    expr.args[i] = Expr(:block, expr.args[i], :break)
+                #end
+                ass_expr = Expr(Symbol("="), Symbol(retname), expr.args[i].args[1])
+                goto_expr = Meta.parse("@goto " * retlabel)
+                expr.args[i] = Expr(:block, ass_expr, goto_expr)
             end
-            return_remover!(expr.args[i])
+            return_remover!(expr.args[i], in_loop, retname, retlabel)
         end
     end
 end
@@ -202,8 +213,7 @@ function function_call_inliner!(expr, fs)
 
                     new_body = copy(f.args[2])
                     
-                    #TODO: ok, this is an issue. Just removing a return is not semantically equivalent as returning the value. why? control structures.
-                    #return_remover!(new_body)
+
 
                     # iterate over all the function definition arguments
                     for j in eachindex(f.args[1].args)
@@ -215,7 +225,15 @@ function function_call_inliner!(expr, fs)
                         symbol_replace!(new_body, f.args[1].args[j], expr.args[i].args[j])
                     end
 
-                    expr.args[i] = Expr(:let, Expr(:block), new_body)
+                    ret_name = string(f.args[1].args[1]) * "_return_value"
+                    label_name = string(f.args[1].args[1]) * "_end"
+                    ret_init = Expr(Symbol("="), Symbol(ret_name), :nothing)
+                    ret_end = Meta.parse("@label " * label_name)
+
+                   
+                    return_remover!(new_body, false, ret_name, label_name)
+
+                    expr.args[i] = Expr(:let, Expr(:block), Expr(:block, ret_init, new_body, ret_end, Symbol(ret_name)))
                 end
             end
             

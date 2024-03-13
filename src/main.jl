@@ -29,6 +29,7 @@ function parse_commandline()
         "--inliner-depth"
             help = "the amount of inlining depth desired. Set it to 0 to avoid inlining completely"
             default = 5
+            arg_type = Int
     end
     return parse_args(s)
 end
@@ -130,8 +131,8 @@ function main()
         ast = replace_cuda_1(asts[i])
 
         for id in kernel_ids
-            println("Kernelizing, ", id)
-            kernelize_function!(ast, id, fs, convert(Int, parsed_args["inliner-depth"]))
+            println("Kernelizing, ", id, " at inlining depth ", parsed_args["inliner-depth"])
+            kernelize_function!(ast, id, fs, parsed_args["inliner-depth"])
         end 
 
         str = replace_cuda_2(ast, parsed_args["backend"])
