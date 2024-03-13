@@ -27,8 +27,8 @@ function parse_commandline()
             help = "mirror the input file structure in the output"
             action = :store_true
         "--inliner-depth"
-            help = "the amount of inlining depth desired. Set it to 0 to avoid inlining completely"
-            default = 5
+            help = "the amount of inlining depth desired. Set it to 0 to avoid inlining completely or -1 to inline completely (be careful with recursive functions)"
+            default = -1
             arg_type = Int
     end
     return parse_args(s)

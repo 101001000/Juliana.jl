@@ -156,8 +156,16 @@ function kernelize_function!(expr, sym, fs, inliner_it)
                 extract_const_vars(expr.args[i], var_ids)
                 constantify_function!(expr.args[i], var_ids)
 
-                for j in 1:inliner_it
+                # TODO: Just one iteration is enough to translate all
+                j = 1
+                while inliner_it == -1 || j <= inliner_it
+                    ast_pre_inline = copy(expr.args[i].args[2])
                     function_call_inliner!(expr.args[i].args[2], fs)
+
+                    if (ast_pre_inline == expr.args[i].args[2]) # No more changes required.
+                        break
+                    end
+                    j += 1
                 end
 
                 expr.args[i] = Expr(:macrocall, Symbol("@kernel"), LineNumberNode(1), expr.args[i])
