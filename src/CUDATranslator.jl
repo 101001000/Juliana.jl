@@ -168,28 +168,19 @@ function kernelize_function!(expr, sym, fs, inliner_it)
     end
 end
 
-
-function return_remover!(expr, in_loop, retname, retlabel)
+# It will replace all the returns with the correspondent @goto.
+function return_replacer!(expr, retname, retlabel)
     if typeof(expr) == Expr
-        in_loop |= expr.head == :for
-        in_loop |= expr.head == :while
-        if expr.head == :let  # let resets in_loop
-            in_loop = false
-        end
         for i in eachindex(expr.args)
             if typeof(expr.args[i]) != Expr 
                 continue
             end
             if expr.args[i].head == :return
-                #expr.args[i] = expr.args[i].args[1]
-                #if in_loop
-                #    expr.args[i] = Expr(:block, expr.args[i], :break)
-                #end
                 ass_expr = Expr(Symbol("="), Symbol(retname), expr.args[i].args[1])
                 goto_expr = Meta.parse("@goto " * retlabel)
                 expr.args[i] = Expr(:block, ass_expr, goto_expr)
             end
-            return_remover!(expr.args[i], in_loop, retname, retlabel)
+            return_replacer!(expr.args[i], retname, retlabel)
         end
     end
 end
@@ -204,34 +195,29 @@ function drop_type(expr)
     return expr
 end
 
+# if applied to an expr, it will replace all the function calls with the definitions stored in the fs_inlined keys.
+# fs_inlined stores the times certain function has been inlined
+# because kernels cannot have return statements, those are replaced with @goto and @label macros, adding a return variable at the end of the let construct
 function function_call_inliner!(expr, fs_inlined)
-
-    #TODO: ADD THE REMAINING CALL SYMBOLS
-    exclude_symbols = [Symbol(":"), Symbol("=="), Symbol("*"), Symbol("+")]
-
     for i in eachindex(expr.args)
         if typeof(expr.args[i]) != Expr 
             continue
         end
-        if expr.args[i].head == :call && !(expr.args[i].args[1] in exclude_symbols)
+        if expr.args[i].head == :call
             
+            #check if the function call is in the list of functions extracted.
             for f in keys(fs_inlined)
                 if f.args[1].args[1] == expr.args[i].args[1]
 
-                    println("In function ", f.args[1].args[1])
-
                     new_body = copy(f.args[2])
                     
-
-
                     # iterate over all the function definition arguments
                     for j in eachindex(f.args[1].args)
                         if j == 1 # we ignore the function call
                             continue
                         end
                         # replace the function definition arguments for the call ones.
-                        println("replacing ", drop_type(f.args[1].args[j]), " with ", expr.args[i].args[j])
-                        symbol_replace!(new_body, drop_type(f.args[1].args[j]), expr.args[i].args[j])
+                        expr_replace!(new_body, drop_type(f.args[1].args[j]), expr.args[i].args[j])
                     end
 
                     ret_name = string(f.args[1].args[1]) * "_return_value"
@@ -239,13 +225,11 @@ function function_call_inliner!(expr, fs_inlined)
                     ret_init = Expr(Symbol("="), Symbol(ret_name), :nothing)
                     ret_end = Meta.parse("@label " * label_name)
 
-                    return_remover!(new_body, false, ret_name, label_name)
+                    return_replacer!(new_body, ret_name, label_name)
                     fs_inlined[f] += 1
                     expr.args[i] = Expr(:let, Expr(:block), Expr(:block, ret_init, new_body, ret_end, Symbol(ret_name)))
                 end
-            end
-            
-            continue
+            end 
         end
         function_call_inliner!(expr.args[i], fs_inlined)
     end
@@ -447,6 +431,19 @@ function symbol_replace!(expr, old_symbol, new_symbol)
                 expr.args[i] = Symbol(new_symbol)
             end
             symbol_replace!(expr.args[i], old_symbol, new_symbol)
+        end
+    end
+end
+
+
+function expr_replace!(expr, old_expr, new_expr)
+    if typeof(expr) == Expr
+        for i in eachindex(expr.args)
+            if expr_to_string(expr.args[i]) == expr_to_string(old_expr)
+                expr.args[i] = new_expr
+                continue
+            end
+            expr_replace!(expr.args[i], old_expr, new_expr)
         end
     end
 end

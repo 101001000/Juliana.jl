@@ -138,7 +138,6 @@ function main()
         end
 
         for id in kernel_ids
-            println("Kernelizing, ", id, " at inlining depth ", parsed_args["inliner-depth"])
             kernelize_function!(ast, id, fs_inlined, parsed_args["inliner-depth"])
         end 
 
