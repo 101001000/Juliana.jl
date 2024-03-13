@@ -142,7 +142,7 @@ function constantify_function!(expr, args_ids)
     end
 end
 
-function kernelize_function!(expr, sym, fs)
+function kernelize_function!(expr, sym, fs, inliner_it)
     for i in eachindex(expr.args)
         if typeof(expr.args[i]) != Expr 
             continue
@@ -156,17 +156,15 @@ function kernelize_function!(expr, sym, fs)
                 extract_const_vars(expr.args[i], var_ids)
                 constantify_function!(expr.args[i], var_ids)
 
-                function_call_inliner!(expr.args[i].args[2], fs)
-                function_call_inliner!(expr.args[i].args[2], fs)
-                function_call_inliner!(expr.args[i].args[2], fs)
-                function_call_inliner!(expr.args[i].args[2], fs)
-                function_call_inliner!(expr.args[i].args[2], fs)
+                for j = 1:inliner_it
+                    function_call_inliner!(expr.args[i].args[2], fs)
+                end
 
                 expr.args[i] = Expr(:macrocall, Symbol("@kernel"), LineNumberNode(1), expr.args[i])
                 continue
             end
         end
-        kernelize_function!(expr.args[i], sym, fs)
+        kernelize_function!(expr.args[i], sym, fs, inliner_it)
     end
 end
 

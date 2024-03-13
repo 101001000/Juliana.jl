@@ -26,6 +26,9 @@ function parse_commandline()
         "--mirror", "-m"
             help = "mirror the input file structure in the output"
             action = :store_true
+        "--inliner-depth"
+            help = "the amount of inlining depth desired. Set it to 0 to avoid inlining completely"
+            default = 5
     end
     return parse_args(s)
 end
@@ -128,7 +131,7 @@ function main()
 
         for id in kernel_ids
             println("Kernelizing, ", id)
-            kernelize_function!(ast, id, fs)
+            kernelize_function!(ast, id, fs, parse(Int, parsed_args["inliner-depth"]))
         end 
 
         str = replace_cuda_2(ast, parsed_args["backend"])
