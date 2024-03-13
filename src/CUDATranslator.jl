@@ -195,7 +195,7 @@ function return_remover!(expr, in_loop, retname, retlabel)
 end
 
 
-function function_call_inliner!(expr, fs)
+function function_call_inliner!(expr, fs_inlined)
 
     #TODO: ADD THE REMAINING CALL SYMBOLS
     exclude_symbols = [Symbol(":"), Symbol("=="), Symbol("*"), Symbol("+")]
@@ -206,7 +206,7 @@ function function_call_inliner!(expr, fs)
         end
         if expr.args[i].head == :call && !(expr.args[i].args[1] in exclude_symbols)
             
-            for f in fs
+            for f in keys(fs_inlined)
                 if f.args[1].args[1] == expr.args[i].args[1]
 
                     println("In function ", f.args[1].args[1])
@@ -226,20 +226,19 @@ function function_call_inliner!(expr, fs)
                     end
 
                     ret_name = string(f.args[1].args[1]) * "_return_value"
-                    label_name = string(f.args[1].args[1]) * "_end"
+                    label_name = string(f.args[1].args[1]) * "_end_" * string(fs_inlined[f])
                     ret_init = Expr(Symbol("="), Symbol(ret_name), :nothing)
                     ret_end = Meta.parse("@label " * label_name)
 
-                   
                     return_remover!(new_body, false, ret_name, label_name)
-
+                    fs_inlined[f] += 1
                     expr.args[i] = Expr(:let, Expr(:block), Expr(:block, ret_init, new_body, ret_end, Symbol(ret_name)))
                 end
             end
             
             continue
         end
-        function_call_inliner!(expr.args[i], fs)
+        function_call_inliner!(expr.args[i], fs_inlined)
     end
 end
 

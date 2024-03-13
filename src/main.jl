@@ -130,9 +130,16 @@ function main()
         println("Outputing ", output_files[i])
         ast = replace_cuda_1(asts[i])
 
+
+        fs_inlined = Dict() # How many times each function has been inlined.
+
+        for f in fs
+            fs_inlined[f] = 0
+        end
+
         for id in kernel_ids
             println("Kernelizing, ", id, " at inlining depth ", parsed_args["inliner-depth"])
-            kernelize_function!(ast, id, fs, parsed_args["inliner-depth"])
+            kernelize_function!(ast, id, fs_inlined, parsed_args["inliner-depth"])
         end 
 
         str = replace_cuda_2(ast, parsed_args["backend"])
