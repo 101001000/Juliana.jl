@@ -194,6 +194,15 @@ function return_remover!(expr, in_loop, retname, retlabel)
     end
 end
 
+function drop_type(expr)
+    if !(expr isa Expr)
+        return expr
+    end
+    if expr.head == Symbol("::")
+        return expr.args[1]
+    end
+    return expr
+end
 
 function function_call_inliner!(expr, fs_inlined)
 
@@ -221,8 +230,8 @@ function function_call_inliner!(expr, fs_inlined)
                             continue
                         end
                         # replace the function definition arguments for the call ones.
-                        println("replacing ", f.args[1].args[j], " with ", expr.args[i].args[j])
-                        symbol_replace!(new_body, f.args[1].args[j], expr.args[i].args[j])
+                        println("replacing ", drop_type(f.args[1].args[j]), " with ", expr.args[i].args[j])
+                        symbol_replace!(new_body, drop_type(f.args[1].args[j]), expr.args[i].args[j])
                     end
 
                     ret_name = string(f.args[1].args[1]) * "_return_value"
