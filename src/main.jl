@@ -131,7 +131,7 @@ function main()
 
         for id in kernel_ids
             println("Kernelizing, ", id)
-            kernelize_function!(ast, id, fs, parse(Int, parsed_args["inliner-depth"]))
+            kernelize_function!(ast, id, fs, convert(Int, parsed_args["inliner-depth"]))
         end 
 
         str = replace_cuda_2(ast, parsed_args["backend"])
