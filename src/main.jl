@@ -143,11 +143,8 @@ function main()
     
         warning_generator(asts[i])
     
-        fs_inlined = Dict() # How many times each function has been inlined.
-
-        for f in fs
-            fs_inlined[f] = 0
-        end
+        # how many times a function has been inlined
+        fs_inlined = Dict(f => 0 for f in fs)
 
         for id in kernel_ids
             kernelize_function!(asts[i], id, fs_inlined, parsed_args["inliner-depth"])
