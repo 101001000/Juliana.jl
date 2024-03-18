@@ -81,7 +81,7 @@ function warning_generator(expr)
     end
 end
 
-function namespace_replacer(expr)
+function namespace_replacer!(expr) # This is not a namespace_replacer...
 
     try
         if expr.head == :call
@@ -327,22 +327,6 @@ function extract_type_from_curly_call(expr)
     @assert expr.head == :call
     @assert expr.args[1].head == :curly
     return expr.args[1].args[2]
-end
-
-function replace_cuda_1(ast_top)
-    
-    namespace_replacer(ast_top)
-    namespace_replacer(ast_top) # need to run this twice because the postprocessing step required for @benchmark.
-    
-    while true
-        ast_pre_block_cleanup = copy(ast_top)
-        block_cleaner!(ast_top)
-        ast_pre_block_cleanup != ast_top || break
-    end
-
-    warning_generator(ast_top)
-
-    return ast_top
 end
 
 

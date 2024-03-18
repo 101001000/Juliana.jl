@@ -124,16 +124,25 @@ function main()
         ast = Meta.parse(str)
     
         explicit_using_replace!(ast)
-        extract_kernel_names!(ast, kernel_ids)
+        extract_kernel_names!(ast, kernel_ids) # Maybe is better to extract directly the kernel AST?
         extract_functions!(ast, fs)
         push!(asts, ast)
     end
 
     for i in eachindex(output_files)
         println("Outputing ", output_files[i])
-        ast = replace_cuda_1(asts[i])
 
+        namespace_replacer!(asts[i])
+        namespace_replacer!(asts[i]) # need to run this twice because the postprocessing step required for @benchmark.
 
+        while true
+            ast_pre_block_cleanup = copy(asts[i])
+            block_cleaner!(asts[i])
+            ast_pre_block_cleanup != asts[i] || break
+        end
+    
+        warning_generator(asts[i])
+    
         fs_inlined = Dict() # How many times each function has been inlined.
 
         for f in fs
@@ -141,10 +150,10 @@ function main()
         end
 
         for id in kernel_ids
-            kernelize_function!(ast, id, fs_inlined, parsed_args["inliner-depth"])
+            kernelize_function!(asts[i], id, fs_inlined, parsed_args["inliner-depth"])
         end 
 
-        str = replace_cuda_2(ast, parsed_args["backend"])
+        str = replace_cuda_2(asts[i], parsed_args["backend"])
         str = replace_interpolation(str)
 
         if parsed_args["comments"]
