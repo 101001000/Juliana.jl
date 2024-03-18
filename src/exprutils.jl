@@ -92,3 +92,30 @@ function expr_has_symbol(expr, sym)
         return has_symbol
     end
 end
+
+function block_cleaner!(expr)
+    if expr isa Expr
+        for i in eachindex(expr.args)
+            if expr.args[i] isa Expr
+                if expr.args[i].head == :block && expr.head == :block
+                    indices = []
+                    for j in eachindex(expr.args[i].args)
+                        if expr.args[i].args[j] isa LineNumberNode
+                            continue
+                        end
+                        push!(indices, j)
+                    end
+                    if length(indices) == 0
+                        expr.args[i] = LineNumberNode(1)
+                    end
+
+                    if length(indices) == 1
+                        expr.args[i] = expr.args[i].args[indices[1]]
+                    end
+                end
+            end
+            block_cleaner!(expr.args[i])
+        end
+    end
+end
+
