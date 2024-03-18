@@ -1,7 +1,10 @@
 using ArgParse
 using FilePathsBase
 
-include("CUDATranslator.jl")
+include("codeprocessor.jl")
+include("namespaceresolver.jl")
+include("exprreplacer.jl")
+include("kernelizer.jl")
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -142,6 +145,7 @@ function main()
         end 
 
         str = replace_cuda_2(ast, parsed_args["backend"])
+        str = replace_interpolation(str)
 
         if parsed_args["comments"]
             str = undo_replace_comments(str)
