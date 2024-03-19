@@ -134,12 +134,14 @@ function main()
     end
 
     fs_names = map(x -> x.args[1].args[1], collect(fs))
-    for dep in values(deps)
-        filter!(x -> x in fs_names, dep)
+    for key in keys(deps)
+        deps[key] = filter(x -> x in fs_names, deps[key])
     end
+
     unroll_deps!(deps, first(keys(deps)), nothing)
 
     is_kernel_dict = Dict(f.args[1].args[1] => false for f in fs)
+
     process_is_kernel!(fs, deps, is_kernel_dict)
 
     for i in eachindex(output_files)
