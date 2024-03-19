@@ -1,3 +1,11 @@
+function function_name(expr)
+    if !(expr isa Expr) || expr.head != :function
+        error("Trying to retrieve the function name of an unkown object")
+    else
+        return expr.args[1].args[1]
+    end
+end
+
 function uncurlyfy(expr)
     if typeof(expr) != Expr
         return expr

@@ -6,7 +6,7 @@ function kernelize_function!(expr, sym, fs, inliner_it)
             continue
         end
         if expr.args[i].head == :function
-            if(expr.args[i].args[1].args[1] == sym)
+            if(function_name(expr.args[i]) == sym)
                 remove_farg_types!(expr.args[i])
 
                 var_ids = Set()
@@ -112,7 +112,7 @@ function function_call_inliner!(expr, fs_inlined)
             
             #check if the function call is in the list of functions extracted.
             for f in keys(fs_inlined)
-                if f.args[1].args[1] == expr.args[i].args[1]
+                if function_name(f) == expr.args[i].args[1]
 
                     new_body = copy(f.args[2])
                     
@@ -125,8 +125,8 @@ function function_call_inliner!(expr, fs_inlined)
                         expr_replace!(new_body, drop_type(f.args[1].args[j]), expr.args[i].args[j])
                     end
 
-                    ret_name = string(f.args[1].args[1]) * "_return_value" * string(fs_inlined[f])
-                    label_name = string(f.args[1].args[1]) * "_end_" * string(fs_inlined[f])
+                    ret_name = string(function_name(f)) * "_return_value" * string(fs_inlined[f])
+                    label_name = string(function_name(f)) * "_end_" * string(fs_inlined[f])
                     ret_init = Expr(Symbol("="), Symbol(ret_name), :nothing)
                     ret_end = Meta.parse("@label " * label_name)
 
@@ -162,7 +162,7 @@ function extract_functions!(expr, fs, deps)
         push!(fs, expr)
         calls = Set()
         extract_calls!(expr.args[2], calls)
-        deps[expr.args[1].args[1]] = calls
+        deps[function_name(expr)] = calls
     end
     for i in eachindex(expr.args)
         extract_functions!(expr.args[i], fs, deps)   
@@ -201,9 +201,9 @@ end
 # is_kernel_dict is a dict which holds if certain function symbol is kernel
 function process_is_kernel!(functions, deps, is_kernel_dict)
     for f in functions
-        is_kernel_dict[f.args[1].args[1]] |= is_kernel(f)
-        for dep in deps[f.args[1].args[1]]
-            is_kernel_dict[f.args[1].args[1]] |= is_kernel_dict[dep]
+        is_kernel_dict[function_name(f)] |= is_kernel(f)
+        for dep in deps[function_name(f)]
+            is_kernel_dict[function_name(f)] |= is_kernel_dict[dep]
         end
     end
 end
