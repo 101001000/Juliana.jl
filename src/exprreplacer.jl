@@ -54,17 +54,6 @@ function extract_kernel_names!(expr, ids)
     end
 end
 
-function extract_functions!(expr, fs)
-    if typeof(expr) != Expr
-        return
-    end
-    if expr.head == :function 
-        push!(fs, expr)
-    end
-    for i in eachindex(expr.args)
-        extract_functions!(expr.args[i], fs)   
-    end
-end
 
 
 

@@ -18,6 +18,7 @@ function kernelize_function!(expr, sym, fs, inliner_it)
                 j = 1
                 while inliner_it == -1 || j <= inliner_it
                     ast_pre_inline = copy(expr.args[i].args[2])
+
                     function_call_inliner!(expr.args[i].args[2], fs)
 
                     if (ast_pre_inline == expr.args[i].args[2]) # No more changes required.
@@ -136,5 +137,73 @@ function function_call_inliner!(expr, fs_inlined)
             end 
         end
         function_call_inliner!(expr.args[i], fs_inlined)
+    end
+end
+
+
+# Return the symbol of each function call
+function extract_calls!(expr, calls)
+    if typeof(expr) != Expr
+        return
+    end
+    if expr.head == :call 
+        push!(calls, expr.args[1])
+    end
+    for i in eachindex(expr.args)
+        extract_calls!(expr.args[i], calls)   
+    end
+end
+
+function extract_functions!(expr, fs, deps)
+    if typeof(expr) != Expr
+        return
+    end
+    if expr.head == :function 
+        push!(fs, expr)
+        calls = Set()
+        extract_calls!(expr.args[2], calls)
+        deps[expr.args[1].args[1]] = calls
+    end
+    for i in eachindex(expr.args)
+        extract_functions!(expr.args[i], fs, deps)   
+    end
+end
+
+function unroll_deps!(deps, node, parent)
+    if !isnothing(parent)
+        for call in deps[node]
+            push!(deps[parent], call)
+        end
+    end
+    for dep in deps[node]
+        unroll_deps!(deps, dep, node)
+    end
+end
+
+# return if a function has kernel constructs but without taking into account kernel calls.
+function is_kernel(expr)
+    if typeof(expr) != Expr
+        return false
+    end
+    if expr_identify_1(expr, """var\"@index\"""") ||
+       expr_identify_1(expr, """var\"@synchronize\"""") ||
+       expr_identify_1(expr, """var\"@localmem\"""") ||
+       expr_identify_1(expr, """var\"@private\"""") #TODO: Add for @const check
+        return true
+    end
+    res = false
+    for i in eachindex(expr.args)
+        res |= is_kernel(expr.args[i])
+    end
+    return res
+end
+
+# is_kernel_dict is a dict which holds if certain function symbol is kernel
+function process_is_kernel!(functions, deps, is_kernel_dict)
+    for f in functions
+        is_kernel_dict[f.args[1].args[1]] |= is_kernel(f)
+        for dep in deps[f.args[1].args[1]]
+            is_kernel_dict[f.args[1].args[1]] |= is_kernel_dict[dep]
+        end
     end
 end

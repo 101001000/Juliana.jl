@@ -107,6 +107,7 @@ function main()
     kernel_ids = Set()
     fs = Set()
     asts = []
+    deps = Dict()
 
     for file_name in input_files
 
@@ -125,16 +126,23 @@ function main()
     
         explicit_using_replace!(ast)
         extract_kernel_names!(ast, kernel_ids) # Maybe is better to extract directly the kernel AST?
-        extract_functions!(ast, fs)
+
+        extract_functions!(ast, fs, deps)          
+        namespace_replacer!(ast)
+        namespace_replacer!(ast) # need to run this twice because the postprocessing step required for @benchmark.
         push!(asts, ast)
     end
 
+    fs_names = map(x -> x.args[1].args[1], collect(fs))
+    for dep in values(deps)
+        filter!(x -> x in fs_names, dep)
+    end
+    unroll_deps!(deps, first(keys(deps)), nothing)
+
+    is_kernel_dict = Dict(f.args[1].args[1] => false for f in fs)
+    process_is_kernel!(fs, deps, is_kernel_dict)
+
     for i in eachindex(output_files)
-        println("Outputing ", output_files[i])
-
-        namespace_replacer!(asts[i])
-        namespace_replacer!(asts[i]) # need to run this twice because the postprocessing step required for @benchmark.
-
         while true
             ast_pre_block_cleanup = copy(asts[i])
             block_cleaner!(asts[i])
@@ -142,9 +150,9 @@ function main()
         end
     
         warning_generator(asts[i])
-    
-        # how many times a function has been inlined
-        fs_inlined = Dict(f => 0 for f in fs)
+     
+        # fs_inlined is a dictionary where the keys are the functions to be inlined, and the value, the amount of replacements.
+        fs_inlined = Dict(f => 0 for f in filter(x -> is_kernel_dict[x.args[1].args[1]], fs))
 
         for id in kernel_ids
             kernelize_function!(asts[i], id, fs_inlined, parsed_args["inliner-depth"])
