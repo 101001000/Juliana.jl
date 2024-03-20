@@ -34,6 +34,58 @@ function emit_warning(warning::Warning)
     push!(emitted_warnings, warning)
 end
 
+function print_warnings_dict(warnings_dict)
+    # Function to wrap text and ensure proper alignment
+    function wrap_text(text, max_length)
+        if length(text) > max_length
+            return text[1:max_length-3] * "..."
+        else
+            return text
+        end
+    end
+
+    # Aggregate warnings with wrapped descriptions
+    aggregated_warnings = Dict()
+    for (warning, count) in warnings_dict
+        key = (warning.warningcode, warning.warningname, wrap_text(warning.message, 32))
+        if haskey(aggregated_warnings, key)
+            push!(aggregated_warnings[key], (warning.data, count))
+        else
+            aggregated_warnings[key] = [(warning.data, count)]
+        end
+    end
+
+    # Determine dynamic padding based on the longest entry for each field
+    max_warning_code_length = maximum([length(key[1]) for key in keys(aggregated_warnings)])
+    max_warning_name_length = maximum([length(key[2]) for key in keys(aggregated_warnings)])
+    max_description_length = 32
+    header_warning_code = "Warning code"
+    header_warning_name = "Warning name"
+    header_description = "Warning description"
+
+    # Ensure header fields are included in padding calculations
+    max_warning_code_length = max(max_warning_code_length, length(header_warning_code))
+    max_warning_name_length = max(max_warning_name_length, length(header_warning_name))
+    max_description_length = max(max_description_length, length(header_description))
+
+    # Print header
+    println("-"^(max_warning_code_length + max_warning_name_length + max_description_length + 29)) # Adjust total length based on the columns and separators
+    println("$(rpad(header_warning_code, max_warning_code_length)) | $(rpad(header_warning_name, max_warning_name_length)) | $(rpad(header_description, max_description_length)) | Occurrences")
+    println("-"^(max_warning_code_length + max_warning_name_length + max_description_length + 29))
+
+    # Sort and print each warning with proper padding
+    for key in sort(collect(keys(aggregated_warnings)))
+        warning_data = aggregated_warnings[key]
+        data_str = join(["($(data[1]), $(data[2]))" for data in warning_data if data[1] != ""], " ")
+        data_str = data_str == "" ? "$(warning_data[1][2])" : data_str  # Handle no specific data case
+
+        println("$(rpad(key[1], max_warning_code_length)) | $(rpad(key[2], max_warning_name_length)) | $(rpad(key[3], max_description_length)) | $data_str")
+    end
+    println("-"^(max_warning_code_length + max_warning_name_length + max_description_length + 29))
+end
+
+
+
 function print_warnings()
     dict = Dict()
 
@@ -45,5 +97,5 @@ function print_warnings()
         end
     end
 
-    display(dict)
+    print_warnings_dict(dict)
 end
