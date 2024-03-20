@@ -27,6 +27,8 @@ function kernelize_function!(expr, sym, fs, inliner_it)
                     j += 1
                 end
 
+                return_remover!(expr.args[i])
+
                 expr.args[i] = Expr(:macrocall, Symbol("@kernel"), LineNumberNode(1), expr.args[i])
                 continue
             end
@@ -88,6 +90,26 @@ function return_replacer!(expr, retname, retlabel)
         end
     end
 end
+
+
+function return_remover!(expr)
+    if typeof(expr) == Expr
+        for i in eachindex(expr.args)
+            if typeof(expr.args[i]) != Expr 
+                continue
+            end
+            if expr.args[i].head == :return
+                if isnothing(expr.args[i].args[1])
+                    expr.args[i] = LineNumberNode(1)
+                else
+                    error("Invalid CUDA code, kernels shoulnd´t return any value")
+                end
+            end           
+            return_remover!(expr.args[i])
+        end
+    end
+end
+
 
 
 function drop_type(expr)
