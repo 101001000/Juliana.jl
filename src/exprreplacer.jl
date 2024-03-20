@@ -290,7 +290,7 @@ function expr_replacer(expr)
         return Expr(:block, expr.args[3], Meta.parse("KernelAbstractions.synchronize(backend)"))
 
 
-    elseif expr_identify_1(expr, "CUDA.ldg") # TODO make the array constant!
+    elseif expr_identify_1(expr, "CUDA.ldg")
         return Expr(:ref, expr.args[2], expr.args[3])
 
 
@@ -302,10 +302,12 @@ function expr_replacer(expr)
         push!(expr.args, Expr(Symbol("="), :setup, kernel_ass))
         return expr
     ## COMMENT VALUES
-    elseif expr_identify_line(expr, "CUDA.var\"@profile\"")  ## TODO, EMIT WARNING
-        return Meta.parse("""KAUtils.@comment "Line removed by incompatibility"  """ )
-    elseif expr_identify_line(expr, "CUDA.device") 
-        return Meta.parse("""KAUtils.@comment "Line removed by incompatibility"  """ )
+    elseif expr_identify_line(expr, "CUDA.var\"@profile\"")
+        emit_warning(IncompatibleSymbolRemovedWarning("CUDA.@profile"))
+        return Meta.parse("""KAUtils.@comment "CUDA.@profile removed by incompatibility"  """ )
+    elseif expr_identify_line(expr, "CUDA.device")
+        emit_warning(IncompatibleSymbolRemovedWarning("CUDA.device")) 
+        return Meta.parse("""KAUtils.@comment "CUDA.device removed by incompatibility"  """ )
     else
         return nothing
     end

@@ -5,11 +5,13 @@ struct Warning
     data::String
 end
 
-const warning_list = [
+#TODO: change the empty thing for additional data.
+warning_list = [
     Warning("WN001", "UntranslatedWarning", "Untranslated CUDA symbol", "empty"),
     Warning("WN002", "SyncBlockingForzedWarning", "CUDA @sync forced to be blocking", ""),
     Warning("WN003", "DynamicSMArrayWarning", "Dynamic Shared Memory Arrays not allowed inside KernelAbstractions kernels", ""),
-    Warning("WN004", "DynamicSMArrayToStaticSMArrayWarning", "Dynamic Shared Memory Array converted to Static Shared Memory Array. Offset cropped, please ensure the size is marked as const", "")
+    Warning("WN004", "DynamicSMArrayToStaticSMArrayWarning", "Dynamic Shared Memory Array converted to Static Shared Memory Array. Offset cropped, please ensure the size is marked as const", ""),
+    Warning("WN005", "IncompatibleSymbolRemovedWarning", "CUDA Symbol removed by incompatibility", "empty")
 ]
 
 for warning in warning_list
