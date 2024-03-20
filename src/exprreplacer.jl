@@ -2,6 +2,7 @@ import MacroTools
 import CUDA
 
 include("exprutils.jl")
+include("warnings.jl")
 
 function_call_id = Symbol("") # A terrible global variable which keeps track of the function id.
 
@@ -62,8 +63,7 @@ function warning_generator(expr)
     if typeof(expr) == Expr
         for arg in expr.args
             if arg == Symbol("CUDA") || arg == Symbol("NVTX") 
-                display("UNTRANSLATED SYMBOL")
-                display(expr)
+                emit_warning(UntranslatedWarning(expr_to_string(expr)))
             end
             warning_generator(arg)
         end
@@ -281,11 +281,12 @@ function expr_replacer(expr)
 
     ##
     elseif expr_identify_1(expr, "CUDA.CuDynamicSharedArray")
-        println("Dynamic Arrays not allowed inside KernelAbstractions kernels. Converted to local static memory. Set the dimensions statically if possible or it wont compile. OFFSET CROPPED")
+        emit_warning(DynamicSMArrayWarning())
+        emit_warning(DynamicSMArrayToStaticSMArrayWarning())
         return Expr(:macrocall, Symbol("@localmem"), LineNumberNode(1), expr.args[2], expr.args[3])
         
     elseif expr_identify_1(expr, """CUDA.var\"@sync\"""") ## TODO Support for blocking or not blocking sync!
-        println("CUDA.@sync forced to be blocking")
+        emit_warning(SyncBlockingForzedWarning())
         return Expr(:block, expr.args[3], Meta.parse("KernelAbstractions.synchronize(backend)"))
 
 

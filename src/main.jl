@@ -6,6 +6,7 @@ include("namespaceresolver.jl")
 include("exprreplacer.jl")
 include("kernelizer.jl")
 include("exprutils.jl")
+include("warnings.jl")
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -173,6 +174,10 @@ function main()
         write(file_output, str)
         close(file_output)
     end
+
+
+    println("Warnings: ")
+    print_warnings()
 
 
 end

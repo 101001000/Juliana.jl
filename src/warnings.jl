@@ -1,41 +1,49 @@
 struct Warning
+    warningcode::String
+    warningname::String
     message::String
-    details::Dict{String, Any}
+    data::String
 end
 
-const WARNINGS = Dict{String, WarningDetails}()
+const warning_list = [
+    Warning("WN001", "UntranslatedWarning", "Untranslated CUDA symbol", "empty"),
+    Warning("WN002", "SyncBlockingForzedWarning", "CUDA @sync forced to be blocking", ""),
+    Warning("WN003", "DynamicSMArrayWarning", "Dynamic Shared Memory Arrays not allowed inside KernelAbstractions kernels", ""),
+    Warning("WN004", "DynamicSMArrayToStaticSMArrayWarning", "Dynamic Shared Memory Array converted to Static Shared Memory Array. Offset cropped, please ensure the size is marked as const", "")
+]
 
-function add_warning!(id::String, message::String, details::Dict{String, Any}=Dict())
-    WARNINGS[id] = WarningDetails(message, details)
-end
-
-function emit_warning(warnings_collected::Vector{WarningDetails}, id::String)
-    if haskey(WARNINGS, id)
-        push!(warnings_collected, WARNINGS[id])
-    else
-        error("Warning ID not found: $id")
-    end
-end
-
-function display_warnings(warnings_collected::Vector{WarningDetails})
-    for warning in warnings_collected
-        println("Warning: $(warning.message)")
-        for (key, value) in warning.details
-            println("  $key: $value")
+for warning in warning_list
+    func_name = Symbol(warning.warningname)
+    warning_code = warning.warningcode
+    warning_message = warning.message
+    
+    if warning.data == "" 
+        @eval begin
+            $func_name() = Warning($warning_code, $(string(func_name)), $warning_message, "")
+        end
+    else  # For warnings that require additional data
+        @eval begin
+            $func_name(data::String) = Warning($warning_code, $(string(func_name)), $warning_message, data)
         end
     end
 end
 
+emitted_warnings = Warning[]
 
-add_warning!("W001", "Use of deprecated function", Dict("line" => 42, "function_name" => "oldFunc"))
-add_warning!("W002", "Variable is defined but not used", Dict("line" => 56, "variable_name" => "unusedVar"))
+function emit_warning(warning::Warning)
+    push!(emitted_warnings, warning)
+end
 
-# Collect warnings
-collected_warnings = Vector{WarningDetails}()
+function print_warnings()
+    dict = Dict()
 
-# Emit some warnings
-emit_warning(collected_warnings, "W001")
-emit_warning(collected_warnings, "W002")
+    for warning in emitted_warnings
+        if haskey(dict, warning)
+            dict[warning] += 1
+        else
+            dict[warning] = 1
+        end
+    end
 
-# Display all collected warnings
-display_warnings(collected_warnings)
+    display(dict)
+end
