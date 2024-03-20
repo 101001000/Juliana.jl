@@ -27,9 +27,12 @@ function kernelize_function!(expr, sym, fs, inliner_it)
                     j += 1
                 end
 
-                return_remover!(expr.args[i])
-
+                # KernelAbstractions v0.9.17 dropped the support for return, so I'm using @goto. If some day the support cames back, this can be removed.
+                label_name = string(function_name(expr.args[i])) * "_end"
+                return_replacer!(expr.args[i], label_name)
+                push!(expr.args[i].args[2].args, Meta.parse("@label " * label_name))
                 expr.args[i] = Expr(:macrocall, Symbol("@kernel"), LineNumberNode(1), expr.args[i])
+                
                 continue
             end
         end
@@ -87,6 +90,20 @@ function return_replacer!(expr, retname, retlabel)
                 expr.args[i] = Expr(:block, ass_expr, goto_expr)
             end
             return_replacer!(expr.args[i], retname, retlabel)
+        end
+    end
+end
+
+function return_replacer!(expr, retlabel)
+    if typeof(expr) == Expr
+        for i in eachindex(expr.args)
+            if typeof(expr.args[i]) != Expr 
+                continue
+            end
+            if expr.args[i].head == :return
+                expr.args[i] = Meta.parse("@goto " * retlabel)
+            end
+            return_replacer!(expr.args[i], retlabel)
         end
     end
 end
