@@ -13,6 +13,14 @@ function remove_interpolation(expr)
     return modified_expr
 end
 
+function remove_namespace(expr)
+    if expr.head != Symbol(".")
+        return expr
+    else
+        return expr.args[2]
+    end
+end
+
 function uncurlyfy(expr)
     if typeof(expr) != Expr
         return expr

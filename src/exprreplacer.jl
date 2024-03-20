@@ -3,6 +3,7 @@ import CUDA
 
 include("exprutils.jl")
 include("warnings.jl")
+include("config.jl")
 
 function_call_id = Symbol("") # A terrible global variable which keeps track of the function id.
 
@@ -279,15 +280,14 @@ function expr_replacer(expr)
         insert!(expr.args, 2, :backend)
         return Expr(:block, expr, Meta.parse("KernelAbstractions.synchronize(backend)"))
 
-    ## FORCED VALUES TODO, MAKE THIS PARAMETRIC
-    elseif expr_identify(expr, "CUDA.attribute(dev, CUDA.DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)")
-        return Meta.parse("256")
-    elseif expr_identify(expr, "CUDA.attribute(dev, CUDA.DEVICE_ATTRIBUTE_MAX_GRID_DIM_X)") 
-        return Meta.parse("1024")
-    elseif expr_identify_1(expr, "CUDA.available_memory") 
-        return Meta.parse("1024*1024*1024")
+    elseif expr_identify_1(expr, "CUDA.attribute")
+        str = string(remove_namespace(expr.args[3]))[2:end]
+        emit_warning(DeviceAttributeWarning())
+        return Meta.parse(string(config_parameters["CU_" * str]))
 
-    ##
+    elseif expr_identify_1(expr, "CUDA.available_memory") 
+        return Meta.parse(string(config_parameters["available_memory"]))
+
     elseif expr_identify_1(expr, "CUDA.CuDynamicSharedArray")
         emit_warning(DynamicSMArrayWarning())
         emit_warning(DynamicSMArrayToStaticSMArrayWarning())

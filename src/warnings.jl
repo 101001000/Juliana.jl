@@ -13,7 +13,8 @@ warning_list = [
     Warning("WN004", "DynamicSMArrayToStaticSMArrayWarning", "Dynamic Shared Memory Array converted to Static Shared Memory Array. Offset cropped, please ensure the size is marked as const", ""),
     Warning("WN005", "IncompatibleSymbolRemovedWarning", "CUDA Symbol removed by incompatibility", "empty"),
     Warning("WN006", "ThreadSizeNotChecked", "Thread size not checked for max size", ""),
-    Warning("WN007", "ThreadSizeTooLarge", "Thread size shouldn't exceed max size for compatibility with older devices", "")
+    Warning("WN007", "ThreadSizeTooLarge", "Thread size shouldn't exceed max size for compatibility with older devices", ""),
+    Warning("WN008", "DeviceAttributeWarning", "Device attributes are loaded from a config file emulating some Nvidia GPU", "")
 ]
 
 for warning in warning_list
