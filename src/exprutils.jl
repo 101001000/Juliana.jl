@@ -6,6 +6,13 @@ function function_name(expr)
     end
 end
 
+function remove_interpolation(expr)
+    expr_str = string(expr)
+    modified_str = replace(expr_str, "\$" => "")
+    modified_expr = Meta.parse(modified_str)
+    return modified_expr
+end
+
 function uncurlyfy(expr)
     if typeof(expr) != Expr
         return expr

@@ -11,7 +11,9 @@ warning_list = [
     Warning("WN002", "SyncBlockingForzedWarning", "CUDA @sync forced to be blocking", ""),
     Warning("WN003", "DynamicSMArrayWarning", "Dynamic Shared Memory Arrays not allowed inside KernelAbstractions kernels", ""),
     Warning("WN004", "DynamicSMArrayToStaticSMArrayWarning", "Dynamic Shared Memory Array converted to Static Shared Memory Array. Offset cropped, please ensure the size is marked as const", ""),
-    Warning("WN005", "IncompatibleSymbolRemovedWarning", "CUDA Symbol removed by incompatibility", "empty")
+    Warning("WN005", "IncompatibleSymbolRemovedWarning", "CUDA Symbol removed by incompatibility", "empty"),
+    Warning("WN006", "ThreadSizeNotChecked", "Thread size not checked for max size", ""),
+    Warning("WN007", "ThreadSizeTooLarge", "Thread size shouldn't exceed max size for compatibility with older devices", "")
 ]
 
 for warning in warning_list

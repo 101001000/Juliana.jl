@@ -150,6 +150,14 @@ function generate_kernel_call(expr)
                 subarg = arg.args[i]
                 if subarg == Symbol("threads") && isnothing(threads) 
                     threads = arg.args[i+1]
+                    try #TODO: Magic number here, maybe parametrize the max threadsize warning?
+                        eval(remove_interpolation(Expr(Symbol("="), :threads_value, arg.args[i+1])))
+                        if prod(threads_value) > 256
+                            emit_warning(ThreadSizeTooLarge())
+                        end
+                    catch
+                        emit_warning(ThreadSizeNotChecked())
+                    end
                 end
                 if subarg == Symbol("blocks") && isnothing(blocks) 
                     blocks = arg.args[i+1]
