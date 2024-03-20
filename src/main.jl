@@ -130,8 +130,8 @@ function main()
         extract_kernel_names!(ast, kernel_ids) # Maybe is better to extract directly the kernel AST?
 
         extract_functions!(ast, fs, deps)          
-        namespace_replacer!(ast)
-        namespace_replacer!(ast) # need to run this twice because the postprocessing step required for @benchmark.
+        expression_replacer!(ast)
+        expression_replacer!(ast) # need to run this twice because the postprocessing step required for @benchmark.
         push!(asts, ast)
     end
 

@@ -70,7 +70,7 @@ function warning_generator(expr)
     end
 end
 
-function namespace_replacer!(expr) # This is not a namespace_replacer...
+function expression_replacer!(expr)
 
     try
         if expr.head == :call
@@ -94,7 +94,7 @@ function namespace_replacer!(expr) # This is not a namespace_replacer...
         end
 
         if typeof(expr.args[i]) == Expr
-            namespace_replacer!(expr.args[i])
+            expression_replacer!(expr.args[i])
         end 
 
     end
