@@ -19,8 +19,22 @@ function compute_overhead!(df)
             println("Row without match, " * string(row1["kernelname"]))
         end
     end
-
 end
+
+# Remove adjacent same values vertically
+function compress_rows!(df::DataFrame)
+    for (col_name, col) in pairs(eachcol(df)) 
+        prev_val = nothing
+        for row in eachrow(df)
+            if row[col_name] == prev_val && string(col_name) in ["benchmark", "kernelname"]
+                row[col_name] = ""
+            else
+                prev_val = row[col_name]
+            end
+        end
+    end
+end
+
 
 function generate_csv(files, output)
     df = DataFrame()
@@ -51,6 +65,7 @@ function generate_csv(files, output)
         end
     end
     compute_overhead!(df)
+    compress_rows!(df)
     CSV.write(output, df)
 end
 
