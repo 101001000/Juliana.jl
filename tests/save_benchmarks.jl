@@ -60,11 +60,11 @@ function parse_triple(triple_str)
 end
 
 function main()
-    triples_str = ARGS[1]
+    triples_str = ARGS[2]
     triples_str = replace(triples_str, "\n" => "")
     triples_list = split(triples_str, ";")
     triples = [parse_triple(triple) for triple in triples_list]
-    generate_csv(triples, "output.csv")
+    generate_csv(triples, ARGS[1])
 end
 
 main()
