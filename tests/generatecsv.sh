@@ -39,6 +39,28 @@ rodinia/julia_cuda/pathfinder/dynproc_kernel.json,pathfinder,cuda;
 rodinia/julia_gen/streamcluster/kernel_compute_cost.json,streamcluster,gen;
 rodinia/julia_cuda/streamcluster/kernel_compute_cost.json,streamcluster,cuda"
 
+julia save_aggregated_benchmarks.jl "rodinia-aggregated-gen.csv" "rodinia/julia_gen/backprop/backprop-aggregated.json;
+rodinia/julia_gen/bfs/bfs-aggregated.json;
+rodinia/julia_gen/hotspot/hotspot-aggregated.json;
+rodinia/julia_gen/leukocyte/leukocyte-aggregated.json;
+rodinia/julia_gen/lud/lud-aggregated.json;
+rodinia/julia_gen/nn/nn-aggregated.json;
+rodinia/julia_gen/nw/nw-aggregated.json;
+rodinia/julia_gen/particlefilter/particlefilter-aggregated.json;
+rodinia/julia_gen/pathfinder/pathfinder-aggregated.json;
+rodinia/julia_gen/streamcluster/streamcluster-aggregated.json"
+
+julia save_aggregated_benchmarks.jl "rodinia-aggregated-cuda.csv" "rodinia/julia_cuda/backprop/backprop-aggregated.json;
+rodinia/julia_cuda/bfs/bfs-aggregated.json;
+rodinia/julia_cuda/hotspot/hotspot-aggregated.json;
+rodinia/julia_cuda/leukocyte/leukocyte-aggregated.json;
+rodinia/julia_cuda/lud/lud-aggregated.json;
+rodinia/julia_cuda/nn/nn-aggregated.json;
+rodinia/julia_cuda/nw/nw-aggregated.json;
+rodinia/julia_cuda/particlefilter/particlefilter-aggregated.json;
+rodinia/julia_cuda/pathfinder/pathfinder-aggregated.json;
+rodinia/julia_cuda/streamcluster/streamcluster-aggregated.json"
+
 julia save_benchmarks.jl "exatronkernels.csv" "ExaTronKernels.jl/results/gen/dicf.json,exatron,gen;
 ExaTronKernels.jl/results/cuda/dicf.json,exatron,cuda;
 ExaTronKernels.jl/results/gen/dicfs.json,exatron,gen;
