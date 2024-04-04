@@ -279,9 +279,16 @@ function expr_replacer(expr)
 
 
     elseif expr_identify_1(expr, "CUDA.zeros") || expr_identify_1(expr, "CUDA.ones")
+        #This backend symbols should be changed when parametrizing backend var
         symbol_replace!(expr, "CUDA", "KernelAbstractions") 
         insert!(expr.args, 2, :backend)
+        insert!(expr.args, 3, :Float32)
         return expr
+    
+    elseif expr_identify_1(expr, "CUDA.rand")
+        #This backend symbols should be changed when parametrizing backend var
+        rand_call = Expr(:call, :rand, :Float32, expr.args[2:end]...)
+        return Meta.parse("KAUtils.ArrayConstructor(backend, " * string(rand_call) * ")")
 
     elseif expr_identify_1(expr, "CUDA.copy!")
         symbol_replace!(expr, "CUDA", "KernelAbstractions")
