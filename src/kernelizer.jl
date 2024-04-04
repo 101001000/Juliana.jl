@@ -72,7 +72,7 @@ end
 function constantify_function!(expr, args_ids)
     for i in eachindex(expr.args[1].args[2:end])
         if expr.args[1].args[i+1] in args_ids
-            expr.args[1].args[i] = Expr(:macrocall, Symbol("@Const"), LineNumberNode(1), expr.args[1].args[i])
+            expr.args[1].args[i+1] = Expr(:macrocall, Symbol("@Const"), LineNumberNode(1), expr.args[1].args[i+1])
         end
     end
 end
