@@ -280,9 +280,8 @@ function expr_replacer(expr)
 
     elseif expr_identify_1(expr, "CUDA.zeros") || expr_identify_1(expr, "CUDA.ones")
         #This backend symbols should be changed when parametrizing backend var
-        symbol_replace!(expr, "CUDA", "KernelAbstractions") 
+        symbol_replace!(expr, "CUDA", "KAUtils") 
         insert!(expr.args, 2, :backend)
-        insert!(expr.args, 3, :Float32)
         return expr
     
     elseif expr_identify_1(expr, "CUDA.rand")
