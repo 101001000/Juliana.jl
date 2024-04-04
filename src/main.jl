@@ -152,8 +152,6 @@ function main()
             block_cleaner!(asts[i])
             ast_pre_block_cleanup != asts[i] || break
         end
-    
-        warning_generator(asts[i])
      
         # fs_inlined is a dictionary where the keys are the functions to be inlined, and the value, the amount of replacements.
         fs_inlined = Dict(f => 0 for f in filter(x -> is_kernel_dict[function_name(x)], fs))
@@ -161,6 +159,8 @@ function main()
         for id in kernel_ids
             kernelize_function!(asts[i], id, fs_inlined, parsed_args["inliner-depth"])
         end 
+
+        warning_generator(asts[i])
 
         str = replace_cuda_2(asts[i], parsed_args["backend"])
         str = replace_interpolation(str)

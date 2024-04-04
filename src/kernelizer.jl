@@ -11,7 +11,7 @@ function kernelize_function!(expr, sym, fs, inliner_it)
 
                 var_ids = Set()
 
-                extract_const_vars(expr.args[i], var_ids)
+                extract_const_vars!(expr.args[i], var_ids)
                 constantify_function!(expr.args[i], var_ids)
 
                 # TODO: Just one iteration is enough to translate all
@@ -52,14 +52,16 @@ function remove_farg_types!(expr)
 end
 
 
-function extract_const_vars(expr, s)
+function extract_const_vars!(expr, s)
     if expr isa Expr
-        for arg in expr.args
-            if expr_identify_1(arg, "CUDA.ldg")
-                push!(s,arg.args[2])
+        for i in eachindex(expr.args)
+            if expr_identify_1(expr.args[i], "CUDA.ldg")
+                push!(s,expr.args[i].args[2])
+                #LDG replacement here, maybe it should be in expression replacer?
+                expr.args[i] = Expr(:ref, expr.args[i].args[2], expr.args[i].args[3])
                 continue
             end
-            extract_const_vars(arg, s)
+            extract_const_vars!(expr.args[i], s)
         end
     end
     return s
@@ -69,7 +71,7 @@ end
 
 function constantify_function!(expr, args_ids)
     for i in eachindex(expr.args[1].args[2:end])
-        if expr.args[1].args[i] in args_ids
+        if expr.args[1].args[i+1] in args_ids
             expr.args[1].args[i] = Expr(:macrocall, Symbol("@Const"), LineNumberNode(1), expr.args[1].args[i])
         end
     end

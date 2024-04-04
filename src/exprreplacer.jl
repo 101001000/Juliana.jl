@@ -296,12 +296,7 @@ function expr_replacer(expr)
     elseif expr_identify_1(expr, """CUDA.var\"@sync\"""") ## TODO Support for blocking or not blocking sync!
         emit_warning(SyncBlockingForzedWarning())
         return Expr(:block, expr.args[3], Meta.parse("KernelAbstractions.synchronize(backend)"))
-
-
-    elseif expr_identify_1(expr, "CUDA.ldg")
-        return Expr(:ref, expr.args[2], expr.args[3])
-
-
+        
     elseif expr_identify_1(expr, """var\"@benchmark\"""")
         kernel_ass = extract_and_empty_kernel_ass!(expr)
         if isnothing(kernel_ass)
