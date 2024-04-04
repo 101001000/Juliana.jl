@@ -168,8 +168,17 @@ function generate_kernel_call(expr)
     end
     
     convert_call = Expr(:., :convert, Expr(:tuple, :Int64, threads))
+    try 
+        convert_call = eval(convert_call)
+    catch
+    end
+    tuple_mult = Expr(:call, Expr(:., :KAUtils, QuoteNode(:tuple_mult)), blocks, threads)
+    try 
+        tuple_mult = eval(tuple_mult)
+    catch
+    end
 
-    first_call = Expr(:call, fun_call.args[1], :backend, convert_call, Expr(:call, Expr(:., :KAUtils, QuoteNode(:tuple_mult)), blocks, threads))
+    first_call = Expr(:call, fun_call.args[1], :backend, convert_call, tuple_mult)
 
     kernel_ass = Expr(Symbol("="), :kernel_call, first_call)
 
@@ -296,7 +305,7 @@ function expr_replacer(expr)
     elseif expr_identify_1(expr, """CUDA.var\"@sync\"""") ## TODO Support for blocking or not blocking sync!
         emit_warning(SyncBlockingForzedWarning())
         return Expr(:block, expr.args[3], Meta.parse("KernelAbstractions.synchronize(backend)"))
-        
+
     elseif expr_identify_1(expr, """var\"@benchmark\"""")
         kernel_ass = extract_and_empty_kernel_ass!(expr)
         if isnothing(kernel_ass)
