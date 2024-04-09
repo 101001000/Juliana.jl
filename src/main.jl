@@ -8,7 +8,7 @@ include("kernelizer.jl")
 include("exprutils.jl")
 include("warnings.jl")
 
-function parse_commandline()
+function parse_commandline(args)
     s = ArgParseSettings()
     @add_arg_table s begin
         "--input", "-i"
@@ -36,7 +36,7 @@ function parse_commandline()
             default = -1
             arg_type = Int
     end
-    return parse_args(s)
+    return parse_args(args, s)
 end
 
 function get_files_from_dir(path, recursive)
@@ -101,9 +101,9 @@ function retrieve_files(parsed_args)
 end
 
 
-function main()
+function main(str)
 
-    parsed_args = parse_commandline()
+    parsed_args = parse_commandline(split(str, ", "))
     input_files, output_files = retrieve_files(parsed_args)
 
     kernel_ids = Set()
@@ -182,6 +182,6 @@ function main()
 
 end
 
-main()
+#main(ARGS)
 
 
