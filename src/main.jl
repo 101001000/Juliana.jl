@@ -103,7 +103,7 @@ end
 
 function main(str)
 
-    parsed_args = parse_commandline(split(str, ", "))
+    parsed_args = parse_commandline(split(str, " "))
     input_files, output_files = retrieve_files(parsed_args)
 
     kernel_ids = Set()
