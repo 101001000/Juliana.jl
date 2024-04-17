@@ -8,9 +8,9 @@ function compute_overhead!(df)
                 continue
             end
             if row1["kernelname"] == row2["kernelname"]
-                nf = row1["mean"] / 100
-                row1["overhead"] = (row1["mean"] - row2["mean"]) / nf
-                row2["overhead"] = (row2["mean"] - row1["mean"]) / nf
+                nf = row1["median"] / 100
+                row1["overhead"] = (row1["median"] - row2["median"]) / nf
+                row2["overhead"] = (row2["median"] - row1["median"]) / nf
                 processed_row = true
             end
         end
