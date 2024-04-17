@@ -61,6 +61,8 @@ rodinia/julia_cuda/particlefilter/particlefilter-aggregated.json;
 rodinia/julia_cuda/pathfinder/pathfinder-aggregated.json;
 rodinia/julia_cuda/streamcluster/streamcluster-aggregated.json"
 
+julia normalize_csvs.jl "rodinia-aggregated-cuda.csv" "rodinia-aggregated-gen.csv" 
+
 julia save_benchmarks.jl "exatronkernels.csv" "ExaTronKernels.jl/results/gen/dicf.json,exatron,gen;
 ExaTronKernels.jl/results/cuda/dicf.json,exatron,cuda;
 ExaTronKernels.jl/results/gen/dicfs.json,exatron,gen;
