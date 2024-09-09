@@ -4,8 +4,8 @@ Translation from CUDA -> KernelAbstraction is the only translation supported rig
 
 
 Sample usage: 
-```console
-~using(Juilana); main("--input fileinput1.jl --outpupt fileoutput.jl --backend=(CUDA|ONEAPI|METAL|CPU|AMD) --recursive)
+```julia console
+> using(Julana); main("--input fileinput1.jl --outpupt fileoutput.jl --backend=(CUDA|ONEAPI|METAL|CPU|AMD) --recursive")
 ```
 
 Working [Julia Rodinia](https://github.com/JuliaParallel/rodinia/tree/master/julia_cuda) benchmarks:
