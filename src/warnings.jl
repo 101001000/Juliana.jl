@@ -1,3 +1,4 @@
+#TODO: encapsulate this into a Warning manager.
 struct Warning
     warningcode::String
     warningname::String
@@ -14,7 +15,8 @@ warning_list = [
     Warning("WN005", "IncompatibleSymbolRemovedWarning", "CUDA Symbol removed by incompatibility", "empty"),
     Warning("WN006", "ThreadSizeNotChecked", "Thread size not checked for max size", ""),
     Warning("WN007", "ThreadSizeTooLarge", "Thread size shouldn't exceed max size for compatibility with older devices", ""),
-    Warning("WN008", "DeviceAttributeWarning", "Device attributes are loaded from a config file emulating some Nvidia GPU", "")
+    Warning("WN008", "DeviceAttributeWarning", "Device attributes are loaded from a config file emulating some Nvidia GPU", ""),
+    Warning("WN009", "ImplicitCudaNamespace", "Implicit namespace candidate symbol found, make sure your code and imports are not overriding CUDA symbols.", "empty")
 ]
 
 for warning in warning_list
