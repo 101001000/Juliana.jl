@@ -1,14 +1,3 @@
-function show_unquoted(io::IO, ex::Expr, indent::Int, prec::Int, quote_level::Int = 0)
-	if ex.head == :file
-		for ex in ex.args[2:end]
-			print(io, '\n', " "^indent)
-			Base.show_unquoted(io, ex, indent, -1, quote_level)
-		end
-	else
-		Base.show_unquoted(io, ex, indent, prec, quote_level)
-	end
-end
-
 function node_to_string(node)
 	io = IOBuffer()
 	show_unquoted(io, node, 0, -1)

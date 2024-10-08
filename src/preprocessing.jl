@@ -31,8 +31,30 @@ function comment_encode(str)
 	return str
 end
 
-function extract_kernelcalls(ast)
+function extract_kernelnames(ast)
+	knames = []
+	MacroTools.postwalk(ast) do node
+		if @capture(node, CUDA.@cuda args__ kname_(kargs__))
+			push!(knames, kname)
+		end
+		return node
+	end
+	return knames
+end
 
+function identify_kernels(ast, kernel_names)
+	kasts = []
+	new_ast = MacroTools.postwalk(ast) do node
+		if @capture(node, function fname_(fargs__) fbody_ end)
+			if fname in kernel_names
+				new_node = Expr(:kernel, node)
+				push!(kasts, new_node)
+				return new_node
+			end
+		end
+		return node
+	end
+	return new_ast, kasts
 end
 
 # Look for CUDA symbols without the CUDA prefix and add it.

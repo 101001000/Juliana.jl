@@ -24,9 +24,38 @@ replacements = [
 ["v_::CUDA.CuArray", "v::AbstractGPUArray"],
 ["CUDA.CuArray", "AbstractGPUArray"]
 
-
-
 ]
+
+
+function kernel_wrap(ast)
+	return quote @kernel $ast end
+end
+
+function constantify_kernel(ast)
+	const_args = []	
+	ast1 = MacroTools.postwalk(ast) do node
+		if @capture(node, CUDA.ldg(var_, i_))
+			push!(const_args, var)
+			return Expr(:ref, var, i)
+		end
+		return node
+	end
+	ast2 = MacroTools.postwalk(ast1) do node
+		if @capture(node, @kernel function fname_(fargs__) fbody_ end)
+			new_args = []
+			for arg in fargs
+				if arg in const_args
+					push!(new_args, quote @Const($arg) end)
+				else
+					push!(new_args, arg)
+				end
+			end
+			return quote @kernel function $fname($new_args) $fbody end end
+		end
+		return node
+	end 
+	return ast2
+end
 
 # This only works with function calls.
 function unsplatter(ast)
