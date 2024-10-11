@@ -43,17 +43,6 @@ function remove_kernel_annotations(ast)
 	return rem_ast
 end
 
-function remove_linenumber_nodes(ast)
-	rem_ast = MacroTools.postwalk(ast) do node
-		if node isa Expr
-			return Expr(node.head, filter(arg -> !(arg isa LineNumberNode), node.args)...)
-		else
-			return node
-		end
-	end
-	return rem_ast
-end
-
 function warn_missing_translation(ast)
 	ast = skip_prewalk(ast) do node
 		if node isa Expr

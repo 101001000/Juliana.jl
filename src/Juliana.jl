@@ -1,6 +1,7 @@
 module Juliana
 
 	using MacroTools
+	using SyntaxTree
 
 	include("warnings.jl")
 	include("utils.jl")
@@ -18,34 +19,25 @@ module Juliana
 		
 		ast = load_fat_ast(filepath)
 
-		ast = CUDA_symbol_check(ast, true)
+		ast1 = CUDA_symbol_check(ast, true)
 
-		kernel_names = extract_kernelnames(ast)
-		ast, kernel_asts = identify_kernels(ast, kernel_names)
-
-
-		@info "kernel names: " * string(kernel_names)
+		kernel_names = extract_kernelnames(ast1)
 
 
-		ast = expr_replacer(ast)
+		ast2 = expr_replacer(ast1)
 
-		ast = attr_replacer(ast)
+		ast3 = attr_replacer(ast2)
 		
-		for kernel_ast in kernel_asts
-			kernel_ast.args[1] = kernel_wrap(kernel_ast.args[1])
-			kernel_ast.args[1] = constantify_kernel(kernel_ast.args[1])
-		end
-		
-		println(kernel_asts)
+		ast4 = process_kernels!(ast3, kernel_names)
 		
 
-		ast_rem = remove_linenumber_nodes(ast)
+		SyntaxTree.linefilter!(ast4)
 		
-		ast_rem = remove_kernel_annotations(ast_rem)
+		ast5 = remove_kernel_annotations(ast4)
 
-		warn_missing_translation(ast_rem)
+		warn_missing_translation(ast5)
 
-		save_fat_ast(ast_rem, output_dir)
+		save_fat_ast(ast5, output_dir)
 				
 		println("Warnings: ")
     	print_warnings()

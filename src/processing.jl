@@ -27,9 +27,19 @@ replacements = [
 ]
 
 
-function kernel_wrap(ast)
-	return quote @kernel $ast end
+# This only works with function calls.
+function unsplat_fargs(ast)
+    new_ast = prewalk_once(ast) do node
+	    if node isa Expr
+            if @capture(node, f_(arg_...))
+                return Expr(node.head, f, arg...)
+            end
+        end
+        return node
+    end
+    return new_ast
 end
+
 
 function constantify_kernel(ast)
 	const_args = []	
@@ -45,30 +55,48 @@ function constantify_kernel(ast)
 			new_args = []
 			for arg in fargs
 				if arg in const_args
-					push!(new_args, quote @Const($arg) end)
+					push!(new_args, Expr(:macrocall, Symbol("@Const"), LineNumberNode(1, :none), arg))
 				else
 					push!(new_args, arg)
 				end
 			end
-			return quote @kernel function $fname($new_args) $fbody end end
+			return unsplat_fargs(:(@kernel function $fname($new_args...) $fbody end))
 		end
 		return node
 	end 
 	return ast2
 end
 
-# This only works with function calls.
-function unsplatter(ast)
-    new_ast = MacroTools.postwalk(ast) do node
-	    if node isa Expr
-            if @capture(node, f_(arg_...))
-                return Expr(node.head, f, arg...)
-            end
-        end
-        return node
-    end
-    return new_ast
+function kernel_wrap(ast)
+	return Expr(:macrocall, Symbol("@kernel"), LineNumberNode(1, :none), ast)
 end
+
+function replace_returns(ast)
+
+
+
+end
+
+function process_kernel!(ast)
+	ast = kernel_wrap(ast)
+	ast = constantify_kernel(ast)
+	label_name = "end_" * string(ast.args[3].args[1].args[1])
+	push!(ast.args[3].args[2].args, :(@label $label_name))
+	return ast
+end
+
+function process_kernels!(ast, kernel_names)
+	new_ast = MacroTools.postwalk(ast) do node
+		if @capture(node, function fname_(fargs__) fbody_ end)
+			if fname in kernel_names
+				return process_kernel!(node)
+			end
+		end
+		return node
+	end
+	return new_ast
+end
+
 
 function merge_env(ast, env)
     new_ast = MacroTools.postwalk(ast) do node
