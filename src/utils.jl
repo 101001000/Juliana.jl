@@ -25,6 +25,7 @@ function skip_prewalk(f, node)
     end
 end
 
+
 # Special prewalk function which will skip the walking after applying the function
 function prewalk_once(f, node)
 	new_node = f(node)

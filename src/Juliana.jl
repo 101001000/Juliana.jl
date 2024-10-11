@@ -23,12 +23,19 @@ module Juliana
 
 		kernel_names = extract_kernelnames(ast1)
 
+		deps = extract_dep_graph(ast1)
+
+		@info "deps: " * string(deps)
+
+
 
 		ast2 = expr_replacer(ast1)
 
 		ast3 = attr_replacer(ast2)
 		
-		ast4 = process_kernels!(ast3, kernel_names)
+		@info "Kernels found: " * string(kernel_names)
+
+		ast4 = process_kernels(ast3, kernel_names)
 		
 
 		SyntaxTree.linefilter!(ast4)

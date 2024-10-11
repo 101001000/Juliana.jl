@@ -32,6 +32,26 @@ function comment_encode(str)
 	return str
 end
 
+function extract_dep_graph(ast)
+	defs = []
+	deps = Dict()
+	caller = nothing
+	MacroTools.prewalk(ast) do node
+		if @capture(node, function fname_(fargs__) body_ end)
+			push!(defs, fname)
+			caller = fname		
+		end
+		if @capture(node, fname_(fargs__)) && fname != caller
+			push!(get!(deps, caller, []), fname)
+		end
+		return node
+	end
+	for key in keys(deps)
+		deps[key] = intersect(deps[key], defs)
+	end
+	return deps
+end
+
 function extract_kernelnames(ast)
 	knames = []
 	MacroTools.postwalk(ast) do node

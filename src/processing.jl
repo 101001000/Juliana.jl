@@ -22,8 +22,10 @@ replacements = [
 ["CUDA.CuArray{t_}(args__)", "KAUtils.ArrayConstructor{t}(args...)"],
 
 ["v_::CUDA.CuArray", "v::AbstractGPUArray"],
-["CUDA.CuArray", "AbstractGPUArray"]
+["CUDA.CuArray", "AbstractGPUArray"],
 
+["CUDA.synchronize()", "KernelAbstractions.synchronize(backend)"],
+["CUDA.device()", "nothing", IncompatibleSymbolRemovedWarning("CUDA.device()")]
 ]
 
 
@@ -60,36 +62,63 @@ function constantify_kernel(ast)
 					push!(new_args, arg)
 				end
 			end
-			return unsplat_fargs(:(@kernel function $fname($new_args...) $fbody end))
+			return macro_wrap(create_func(fname, new_args, fbody), :@kernel)
 		end
 		return node
 	end 
 	return ast2
 end
 
-function kernel_wrap(ast)
-	return Expr(:macrocall, Symbol("@kernel"), LineNumberNode(1, :none), ast)
+function macro_wrap(ast, macro_symbol)
+	return Expr(:macrocall, macro_symbol, LineNumberNode(1, :none), ast)
 end
 
-function replace_returns(ast)
+# Quoting makes this anoying double body thing. 
+function create_func(name, args, body)
+	f = :(function $name($args...) $body end)
+	f.args[2].args = f.args[2].args[3].args
+	return unsplat_fargs(f)
+end
 
+function push_expr_fun(ast, expr)
+	@assert(@capture(ast, function fname_(fargs__) fbody_ end))
+	newbody = deepcopy(fbody)
+	push!(newbody.args, expr)
+	return create_func(fname, fargs, newbody)
+end
 
+function func_inliner(ast, fnames, fasts)
 
 end
 
-function process_kernel!(ast)
-	ast = kernel_wrap(ast)
+function replace_returns_fun(ast)
+	@assert(@capture(ast, function fname_(fargs__) fbody_ end))
+	label_name = "end_" * string(fname)
+	var_name = "var_" * string(fname)
+	new_ast = MacroTools.postwalk(ast) do node 
+		if @capture(node, begin body_ end)
+			parent_block = node
+		end
+		if @capture(node, return retval_)
+			return :($(Symbol(var_name)) = $retval; @goto $label_name)
+		end
+		return node
+	end
+	return push_expr_fun(new_ast, :(@label $label_name))
+end
+
+function process_kernel(ast)
+	ast = replace_returns_fun(ast)
+	ast = macro_wrap(ast, :@kernel)
 	ast = constantify_kernel(ast)
-	label_name = "end_" * string(ast.args[3].args[1].args[1])
-	push!(ast.args[3].args[2].args, :(@label $label_name))
 	return ast
 end
 
-function process_kernels!(ast, kernel_names)
+function process_kernels(ast, kernel_names)
 	new_ast = MacroTools.postwalk(ast) do node
 		if @capture(node, function fname_(fargs__) fbody_ end)
 			if fname in kernel_names
-				return process_kernel!(node)
+				return process_kernel(node)
 			end
 		end
 		return node
@@ -128,7 +157,10 @@ function expr_replacer(ast)
             env = MacroTools.trymatch(Meta.parse(replacement[1]), node)
             if !isnothing(env)
                 merged_ast = merge_env(Meta.parse(replacement[2]), env)
-                return unsplatter(merged_ast)
+				if checkbounds(Bool, replacement, 3)
+					emit_warning(replacement[3])
+				end
+                return unsplat_fargs(merged_ast)
             end
         end
         return node
