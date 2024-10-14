@@ -19,32 +19,33 @@ module Juliana
 		
 		ast = load_fat_ast(filepath)
 
-		ast1 = CUDA_symbol_check(ast, true)
+		ast = CUDA_symbol_check(ast, true)
 
-		kernel_names = extract_kernelnames(ast1)
+		kernel_names = extract_kernelnames(ast)
 
-		deps = extract_dep_graph(ast1)
+		deps, defs = extract_dep_graph(ast)
+
+		ast = fcall_inliner(ast, defs, [])
 
 		@info "deps: " * string(deps)
 
 
+		ast = expr_replacer(ast)
 
-		ast2 = expr_replacer(ast1)
-
-		ast3 = attr_replacer(ast2)
+		ast = attr_replacer(ast)
 		
 		@info "Kernels found: " * string(kernel_names)
 
-		ast4 = process_kernels(ast3, kernel_names)
+		ast = process_kernels(ast, kernel_names)
 		
 
-		SyntaxTree.linefilter!(ast4)
+		SyntaxTree.linefilter!(ast)
 		
-		ast5 = remove_kernel_annotations(ast4)
+		ast = remove_kernel_annotations(ast)
 
-		warn_missing_translation(ast5)
+		warn_missing_translation(ast)
 
-		save_fat_ast(ast5, output_dir)
+		save_fat_ast(ast, output_dir)
 				
 		println("Warnings: ")
     	print_warnings()

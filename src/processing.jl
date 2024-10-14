@@ -32,11 +32,9 @@ replacements = [
 # This only works with function calls.
 function unsplat_fargs(ast)
     new_ast = prewalk_once(ast) do node
-	    if node isa Expr
-            if @capture(node, f_(arg_...))
-                return Expr(node.head, f, arg...)
-            end
-        end
+	    if @capture(node, f_(arg_...))
+			return Expr(node.head, f, arg...)
+		end
         return node
     end
     return new_ast
@@ -62,7 +60,7 @@ function constantify_kernel(ast)
 					push!(new_args, arg)
 				end
 			end
-			return macro_wrap(create_func(fname, new_args, fbody), :@kernel)
+			return macro_wrap(create_func(fname, new_args, fbody), Symbol("@kernel"))
 		end
 		return node
 	end 
@@ -80,36 +78,10 @@ function create_func(name, args, body)
 	return unsplat_fargs(f)
 end
 
-function push_expr_fun(ast, expr)
-	@assert(@capture(ast, function fname_(fargs__) fbody_ end))
-	newbody = deepcopy(fbody)
-	push!(newbody.args, expr)
-	return create_func(fname, fargs, newbody)
-end
-
-function func_inliner(ast, fnames, fasts)
-
-end
-
-function replace_returns_fun(ast)
-	@assert(@capture(ast, function fname_(fargs__) fbody_ end))
-	label_name = "end_" * string(fname)
-	var_name = "var_" * string(fname)
-	new_ast = MacroTools.postwalk(ast) do node 
-		if @capture(node, begin body_ end)
-			parent_block = node
-		end
-		if @capture(node, return retval_)
-			return :($(Symbol(var_name)) = $retval; @goto $label_name)
-		end
-		return node
-	end
-	return push_expr_fun(new_ast, :(@label $label_name))
-end
 
 function process_kernel(ast)
 	ast = replace_returns_fun(ast)
-	ast = macro_wrap(ast, :@kernel)
+	ast = macro_wrap(ast, Symbol("@kernel"))
 	ast = constantify_kernel(ast)
 	return ast
 end

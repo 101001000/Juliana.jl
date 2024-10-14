@@ -33,12 +33,12 @@ function comment_encode(str)
 end
 
 function extract_dep_graph(ast)
-	defs = []
+	defs = Dict() # A map of fname -> fast
 	deps = Dict()
 	caller = nothing
 	MacroTools.prewalk(ast) do node
 		if @capture(node, function fname_(fargs__) body_ end)
-			push!(defs, fname)
+			defs[fname] = node
 			caller = fname		
 		end
 		if @capture(node, fname_(fargs__)) && fname != caller
@@ -47,9 +47,9 @@ function extract_dep_graph(ast)
 		return node
 	end
 	for key in keys(deps)
-		deps[key] = intersect(deps[key], defs)
+		deps[key] = intersect(deps[key], keys(defs))
 	end
-	return deps
+	return deps, defs
 end
 
 function extract_kernelnames(ast)
@@ -61,6 +61,74 @@ function extract_kernelnames(ast)
 		return node
 	end
 	return knames
+end
+
+
+function push_expr_fun(ast, expr)
+	@assert(@capture(ast, function fname_(fargs__) fbody_ end))
+	newbody = deepcopy(fbody)
+	push!(newbody.args, expr)
+	return create_func(fname, fargs, newbody)
+end
+
+global f_replacements = Dict{Symbol, Int}()
+
+function replace_returns_fun(ast)
+	@assert(@capture(ast, function fname_(fargs__) fbody_ end))
+	ocurrences = get!(f_replacements, fname, 0)
+	label_name = "end_" * string(fname) * "_" * string(ocurrences)
+	var_name = "var_" * string(fname)
+	new_ast = MacroTools.prewalk(ast) do node 
+		if @capture(node, return retval_)
+			return :($(Symbol(var_name)) = $retval; @goto $label_name)
+		end
+		return node
+	end
+	f_replacements[fname] = ocurrences + 1
+	return push_expr_fun(new_ast, :(@label $label_name))
+end
+
+function letify_func(ast, args_map)
+	@assert(@capture(ast, function fname_(fargs__) fbody_ end))
+	var = Symbol("var_" * string(fname))
+	ast = replace_returns_fun(ast)
+	new_ast = MacroTools.postwalk(ast) do node
+		if node in keys(args_map)
+			return args_map[node]
+		else
+			return node
+		end
+	end
+	Expr(:let, Expr(:block), Expr(:block, new_ast.args[2], var))
+end
+
+
+#TODO: This inlining has issues with arguments replacement.
+#	function test(a)
+#		a *= 2
+#		return a + 1
+#	end
+#
+#	test(1) -> let 
+#					1*=2
+#					1+1 instead 2 + 1
+#				end
+
+function fcall_inliner(ast, fmap, fnames_to_inline)
+    new_ast = prewalk_parent_info((node, parent) -> begin
+        if @capture(node, fname_(fargs__)) && !@capture(parent, function fname2_(fargs2__) fbody2_ end)
+            if fname in fnames_to_inline || fname in keys(fmap) # TODO: select what functions to inline.
+				args_map = Dict()
+				for i in eachindex(fargs)
+					args_map[fmap[fname].args[1].args[i+1]] = fargs[i] 
+				end
+				@info string(args_map)
+                return letify_func(fmap[fname], args_map)
+            end
+        end
+        return node
+    end, ast, nothing)
+    return new_ast
 end
 
 # Look for CUDA symbols without the CUDA prefix and add it.

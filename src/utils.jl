@@ -43,6 +43,19 @@ function prewalk_once(f, node)
 	end
 end
 
+# Special prewalk function which will skip the walking after applying the function
+function prewalk_parent_info(f, node, parent)
+	new_node = f(node, parent)
+	if new_node isa Expr
+        new_args = [prewalk_parent_info(f, arg, new_node) for arg in new_node.args]
+        return Expr(new_node.head, new_args...)
+    elseif node isa Array
+        return [prewalk_parent_info(f, elem, new_node) for elem in new_node]
+    else
+        return new_node
+    end
+end
+
 function dump_gpu_info()
     dev = device()
     atts = Dict()
