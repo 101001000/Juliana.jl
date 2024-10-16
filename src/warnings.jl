@@ -16,7 +16,10 @@ warning_list = [
     Warning("WN006", "ThreadSizeNotChecked", "Thread size not checked for max size", ""),
     Warning("WN007", "ThreadSizeTooLarge", "Thread size shouldn't exceed max size for compatibility with older devices", ""),
     Warning("WN008", "DeviceAttributeWarning", "Device attributes are loaded from a config file emulating some Nvidia GPU", ""),
-    Warning("WN009", "ImplicitCudaNamespace", "Implicit namespace candidate symbol found, make sure your code and imports are not overriding CUDA symbols.", "empty")
+    Warning("WN009", "ImplicitCudaNamespace", "Implicit namespace candidate symbol found, make sure your code and imports are not overriding CUDA symbols.", "empty"),
+    Warning("WN010", "UnsupportedKWArg", "Keyword argument in kernel call not supported.", "empty"),
+    Warning("WN011", "AttributeSimulated", "A hardcoded attribute has been used to replace a CUDA attribute", "empty"),
+    Warning("WN012", "FreeMemorySimulated", "Free memory could not be available in some backends, a default value of 4GB is used in those cases.", "")
 ]
 
 for warning in warning_list

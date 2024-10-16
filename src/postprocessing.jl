@@ -46,6 +46,9 @@ end
 function warn_missing_translation(ast)
 	ast = skip_prewalk(ast) do node
 		if node isa Expr
+			if node.head == :using 
+				return nothing
+			end
 			for arg in node.args
 				if arg == :CUDA
 					emit_warning(UntranslatedWarning(string(node)))

@@ -5,9 +5,12 @@ module Juliana
 
 	include("warnings.jl")
 	include("utils.jl")
+	include("KAUtils.jl")
 	include("preprocessing.jl")
 	include("processing.jl")
 	include("postprocessing.jl")
+
+	using .KAUtils
 
 	export translate, dump_gpu_info
 
@@ -25,19 +28,27 @@ module Juliana
 
 		deps, defs = extract_dep_graph(ast)
 
-		ast = fcall_inliner(ast, defs, [])
+		fnames_to_inline = setdiff(extract_fnames_to_inline(ast, deps), kernel_names)
+
+		ast = fcall_inliner(ast, defs, fnames_to_inline)
 
 		@info "deps: " * string(deps)
+
 
 
 		ast = expr_replacer(ast)
 
 		ast = attr_replacer(ast)
+
+		ast = kcall_replacer(ast)
 		
 		@info "Kernels found: " * string(kernel_names)
 
 		ast = process_kernels(ast, kernel_names)
 		
+
+
+
 
 		SyntaxTree.linefilter!(ast)
 		

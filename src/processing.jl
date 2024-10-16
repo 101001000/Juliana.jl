@@ -25,15 +25,32 @@ replacements = [
 ["CUDA.CuArray", "AbstractGPUArray"],
 
 ["CUDA.synchronize()", "KernelAbstractions.synchronize(backend)"],
-["CUDA.device()", "nothing", IncompatibleSymbolRemovedWarning("CUDA.device()")]
+["CUDA.sync_threads()", "KernelAbstractions.@synchronize()"],
+["CUDA.@cuprintln(args__)", "KernelAbstractions.@print(args...)"], #TODO: add line jump
+
+["CUDA.device()", "nothing", IncompatibleSymbolRemovedWarning("CUDA.device()")],
+["CUDA.@profile discard__", "nothing", IncompatibleSymbolRemovedWarning("CUDA.@profile")],
+["CUDA.WMMA.x_", "nothing", IncompatibleSymbolRemovedWarning("CUDA.WMMA")],
+
+# CUDA Address Aliases
+["CUDA.AS.Generic", "0"],
+["CUDA.AS.Global", "1"],
+["CUDA.AS.Shared", "3"],
+["CUDA.AS.Constant", "4"],
+["CUDA.AS.Local", "5"],
+
+["CUDA.available_memory()", "KAUtils.available_memory(backend)", FreeMemorySimulated()]
 ]
 
 
-# This only works with function calls.
+# This only works with function/macro calls.
 function unsplat_fargs(ast)
     new_ast = prewalk_once(ast) do node
 	    if @capture(node, f_(arg_...))
 			return Expr(node.head, f, arg...)
+		end
+		if @capture(node, @f_(arg_...))
+			return Expr(:macrocall, f, LineNumberNode(0), arg...)
 		end
         return node
     end
@@ -99,6 +116,41 @@ function process_kernels(ast, kernel_names)
 end
 
 
+global kcalls_replaced = 0
+
+function kcall_replacer(ast)
+	new_ast = MacroTools.prewalk(ast) do node
+		if @capture(node, CUDA.@cuda kwargs__ kname_(kargs__))
+			kwargs_dict = Dict()
+			kwargs_dict[:threads] = 1 # Default thread value
+			kwargs_dict[:blocks] = 1 # TODO: I'm not sure about this, or if blocks are calculated automatically. Maybe not use nd_range?
+			supported_kwargs = [:blocks, :threads]
+			#all available kwargs: :dynamic, :launch, :kernel, :name, :always_inline, :minthreads, :maxthreads,
+			#:blocks_per_sm, :maxregs, :fastmath, :cap, :ptx, :cooperative, :blocks, :threads, :shmem, :stream
+			for kwarg in kwargs
+				@assert(@capture(kwarg, kwname_ = kwval_)) #TODO: By now we just process assignments. Maybe is required to extend this later? https://github.com/JuliaGPU/CUDA.jl/blob/a8fecea4b730c153dd79c8245dc1dc71fe8e095b/src/compiler/execution.jl#L31
+				kwargs_dict[kwname] = kwval
+				if !(kwname in supported_kwargs)
+					emit_warning(UnsupportedKWArg(string(kwname)))
+				end
+			end
+			convert_call = Expr(:., :convert, Expr(:tuple, :Int64, kwargs_dict[:threads]))
+			tuple_mult = Expr(:call, Expr(:., :KAUtils, QuoteNode(:tuple_mult)), kwargs_dict[:blocks], kwargs_dict[:threads])
+    		
+			kcall_name = Symbol("kernel_call_" * string(kcalls_replaced))
+
+			kernel_ass = Expr(Symbol("="), kcall_name, Expr(:call, kname, :backend, convert_call, tuple_mult))
+			kernel_call = Expr(:call, kcall_name, kargs...)
+		
+			global kcalls_replaced += 1;
+			return Expr(:block, kernel_ass, kernel_call)
+		end
+		return node
+	end
+	return new_ast
+
+end
+
 function merge_env(ast, env)
     new_ast = MacroTools.postwalk(ast) do node
 	    return node isa Symbol && haskey(env, node) ? env[node] : node
@@ -116,6 +168,7 @@ function attr_replacer(ast, gpu="NVIDIA_GeForce_GTX_950")
     end
     new_ast = MacroTools.postwalk(ast) do node
         if @capture(node, CUDA.attribute(dev_, attr_)) 
+			emit_warning(AttributeSimulated(string(attr.args[2].value)))
 	        return Meta.parse(string(attr_dict["CU_" * string(attr.args[2].value)]))
 	    end
         return node

@@ -103,6 +103,11 @@ function letify_func(ast, args_map)
 end
 
 
+function extract_fnames_to_inline(ast, deps)
+	return []
+end
+
+
 #TODO: This inlining has issues with arguments replacement.
 #	function test(a)
 #		a *= 2
@@ -117,12 +122,11 @@ end
 function fcall_inliner(ast, fmap, fnames_to_inline)
     new_ast = prewalk_parent_info((node, parent) -> begin
         if @capture(node, fname_(fargs__)) && !@capture(parent, function fname2_(fargs2__) fbody2_ end)
-            if fname in fnames_to_inline || fname in keys(fmap) # TODO: select what functions to inline.
+            if fname in fnames_to_inline 
 				args_map = Dict()
 				for i in eachindex(fargs)
 					args_map[fmap[fname].args[1].args[i+1]] = fargs[i] 
 				end
-				@info string(args_map)
                 return letify_func(fmap[fname], args_map)
             end
         end
@@ -143,6 +147,11 @@ function CUDA_symbol_check(ast, convert=true)
 				push!(envs[end], name)
 				for arg in args
 					push!(envs[end], arg)
+				end
+			end
+			if @capture(node, function name_(args__) where {types__} body__ end)
+				for type in types
+					push!(envs[end], type)
 				end
 			end
 			if @capture(node, name_ = x_)
