@@ -44,14 +44,17 @@ function remove_kernel_annotations(ast)
 end
 
 function warn_missing_translation(ast)
+	cuda_symbols = names(CUDA, all=true)
 	ast = skip_prewalk(ast) do node
 		if node isa Expr
 			if node.head == :using 
 				return nothing
 			end
-			for arg in node.args
-				if arg == :CUDA
-					emit_warning(UntranslatedWarning(string(node)))
+			for i in eachindex(node.args) 
+				if node.args[i] == :CUDA
+					if node.args[i+1].value in cuda_symbols
+						emit_warning(UntranslatedWarning(string(node)))
+					end
 				end
 			end
 		end

@@ -180,3 +180,29 @@ function CUDA_symbol_check(ast, convert=true)
 	end
 	return ast
 end
+
+function remove_prefix(expr)
+	@assert(expr.head == Symbol("."))
+	return expr.args[2].value
+end
+
+function remove_unnecessary_prefix(ast)
+	cuda_symbols = names(CUDA, all=true)
+	new_ast = skip_prewalk(ast) do node
+		if node isa Expr
+			if node.head == :using 
+				return nothing
+			end
+			for i in eachindex(node.args) 
+				if node.args[i] == :CUDA
+					if !(node.args[i+1].value in cuda_symbols)
+						emit_warning(UnnecessaryCUDAPrefix(string(node)))
+						return remove_prefix(node)
+					end
+				end
+			end
+		end
+		return node
+	end
+	return new_ast
+end

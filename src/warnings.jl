@@ -19,7 +19,8 @@ warning_list = [
     Warning("WN009", "ImplicitCudaNamespace", "Implicit namespace candidate symbol found, make sure your code and imports are not overriding CUDA symbols.", "empty"),
     Warning("WN010", "UnsupportedKWArg", "Keyword argument in kernel call not supported.", "empty"),
     Warning("WN011", "AttributeSimulated", "A hardcoded attribute has been used to replace a CUDA attribute", "empty"),
-    Warning("WN012", "FreeMemorySimulated", "Free memory could not be available in some backends, a default value of 4GB is used in those cases.", "")
+    Warning("WN012", "FreeMemorySimulated", "Free memory could not be available in some backends, a default value of 4GB is used in those cases.", ""),
+	Warning("WN013", "UnnecessaryCUDAPrefix", "Code used wrongly a CUDA namespace prefix", "empty") #TODO: this can be solved in the preprocessing step.
 ]
 
 for warning in warning_list

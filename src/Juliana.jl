@@ -3,6 +3,7 @@ module Juliana
 	using MacroTools
 	using SyntaxTree
 
+
 	include("warnings.jl")
 	include("utils.jl")
 	include("KAUtils.jl")
@@ -23,6 +24,8 @@ module Juliana
 		ast = load_fat_ast(filepath)
 
 		ast = CUDA_symbol_check(ast, true)
+		
+		ast = remove_unnecessary_prefix(ast)
 
 		kernel_names = extract_kernelnames(ast)
 
