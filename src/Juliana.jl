@@ -2,7 +2,7 @@ module Juliana
 
 	using MacroTools
 	using SyntaxTree
-
+	using TOML
 
 	include("warnings.jl")
 	include("utils.jl")
@@ -13,54 +13,21 @@ module Juliana
 
 	using .KAUtils
 
-	export translate, dump_gpu_info
+	export translate_file, translate_pkg, dump_gpu_info
 
-	function translate(filepath, output_dir)
-			
-		@debug "Processing " * filepath
+	function translate_pkg(pkg_input_path, pkg_output_path)
+		pkg_name = TOML.parsefile(pkg_input_path * "/Project.toml")["name"]
+		@info "Translating the package " * pkg_name
+		main_file_path = pkg_input_path * "/src/" * pkg_name * ".jl"
+		Base.Filesystem.cptree(pkg_input_path, pkg_output_path, force=true)
+		translate_file(main_file_path, pkg_output_path * "/src/")		
+	end
 
-
-		
-		ast = load_fat_ast(filepath)
-
-		ast = CUDA_symbol_check(ast, true)
-		
-		ast = remove_unnecessary_prefix(ast)
-
-		kernel_names = extract_kernelnames(ast)
-
-		deps, defs = extract_dep_graph(ast)
-
-		fnames_to_inline = setdiff(extract_fnames_to_inline(ast, deps), kernel_names)
-
-		ast = fcall_inliner(ast, defs, fnames_to_inline)
-
-		@info "deps: " * string(deps)
-
-
-
-		ast = expr_replacer(ast)
-
-		ast = attr_replacer(ast)
-
-		ast = kcall_replacer(ast)
-		
-		@info "Kernels found: " * string(kernel_names)
-
-		ast = process_kernels(ast, kernel_names)
-		
-
-
-
-
-		SyntaxTree.linefilter!(ast)
-		
-		ast = remove_kernel_annotations(ast)
-
-		warn_missing_translation(ast)
-
-		save_fat_ast(ast, output_dir)
-				
+	function translate_file(filepath, output_dir)
+		@info "Translating " * filepath
+		ast, kernel_names = preprocess(filepath)
+		ast = process(ast, kernel_names)
+		ast = postprocess(ast, output_dir)	
 		println("Warnings: ")
     	print_warnings()
 	end

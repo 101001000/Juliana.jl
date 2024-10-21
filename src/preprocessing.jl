@@ -1,7 +1,22 @@
 import CUDA
 import SyntaxTree
 
-function load_fat_ast(filepath)
+
+function preprocess(filepath)
+	ast = load_fat_ast(basename(filepath), dirname(filepath))
+	ast = CUDA_symbol_check(ast, true)
+	ast = remove_unnecessary_prefix(ast)
+	kernel_names = extract_kernelnames(ast)
+	deps, defs = extract_dep_graph(ast)
+	fnames_to_inline = setdiff(extract_fnames_to_inline(ast, deps), kernel_names)
+	ast = fcall_inliner(ast, defs, fnames_to_inline)
+	return ast, kernel_names
+end
+
+# filename is relative to the main translating file. Dir is where filename is located in a first instance.
+function load_fat_ast(filename, dir)
+	
+	filepath = joinpath(dir, filename)
 
 	if !isfile(filepath)
 		throw(ErrorException(filepath * " not found"))
@@ -13,13 +28,13 @@ function load_fat_ast(filepath)
 	
 	str_ce = comment_encode(str)
 	
-	ast = Expr(:file, filepath, Meta.parse("begin " * str_ce * " end").args...)
+	ast = Expr(:file, filename, Meta.parse("begin " * str_ce * " end").args...)
 
 	ast_fat = MacroTools.postwalk(ast) do node
-		if MacroTools.@capture(node, include(filename_))
+		if MacroTools.@capture(node, include(name_))
 			@debug "File inclussion found, translating recursively..."
-			load_path = dirname(filepath) == "" ? filename : dirname(filepath) * "/" * filename
-			sub_ast = load_fat_ast(load_path)
+			load_path = dirname(filename) == "" ? name : dirname(filename) * "/" * name
+			sub_ast = load_fat_ast(load_path, dir)
 			return sub_ast
 		end
 		return node
@@ -195,9 +210,13 @@ function remove_unnecessary_prefix(ast)
 			end
 			for i in eachindex(node.args) 
 				if node.args[i] == :CUDA
-					if !(node.args[i+1].value in cuda_symbols)
-						emit_warning(UnnecessaryCUDAPrefix(string(node)))
-						return remove_prefix(node)
+					try
+						if !(node.args[i+1].value in cuda_symbols)
+							emit_warning(UnnecessaryCUDAPrefix(string(node)))
+							return remove_prefix(node)
+						end
+					catch
+						@error string(node) * " case not considered for namespace"
 					end
 				end
 			end

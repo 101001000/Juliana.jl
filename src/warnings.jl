@@ -66,6 +66,10 @@ function print_warnings_dict(warnings_dict)
         end
     end
 
+	if isempty(aggregated_warnings)
+		return
+	end
+
     # Determine dynamic padding based on the longest entry for each field
     max_warning_code_length = maximum([length(key[1]) for key in keys(aggregated_warnings)])
     max_warning_name_length = maximum([length(key[2]) for key in keys(aggregated_warnings)])
