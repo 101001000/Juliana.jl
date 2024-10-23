@@ -14,6 +14,7 @@ module Juliana
 	using .KAUtils
 
 	export translate_file, translate_pkg, dump_gpu_info
+	export KAUtils
 
 	function translate_pkg(pkg_input_path, pkg_output_path)
 		pkg_name = TOML.parsefile(pkg_input_path * "/Project.toml")["name"]

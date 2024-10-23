@@ -95,12 +95,12 @@ function replace_returns_fun(ast)
 	var_name = "var_" * string(fname)
 	new_ast = MacroTools.prewalk(ast) do node 
 		if @capture(node, return retval_)
-			return :($(Symbol(var_name)) = $retval; @goto $label_name)
+			return :($(Symbol(var_name)) = $retval; @goto $(Symbol(label_name)))
 		end
 		return node
 	end
 	f_replacements[fname] = ocurrences + 1
-	return push_expr_fun(new_ast, :(@label $label_name))
+	return push_expr_fun(new_ast, :(@label $(Symbol(label_name))))
 end
 
 function letify_func(ast, args_map)

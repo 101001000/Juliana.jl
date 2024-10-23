@@ -6,9 +6,9 @@ replacements = [
 ["CUDA.threadIdx().y", "KernelAbstractions.@index(Local, Cartesian)[2]"],
 ["CUDA.threadIdx().z", "KernelAbstractions.@index(Local, Cartesian)[3]"],
 
-["CUDA.blockIdx().x", "@index(Group, Cartesian)[1]"],
-["CUDA.blockIdx().y", "@index(Group, Cartesian)[2]"],
-["CUDA.blockIdx().z", "@index(Group, Cartesian)[3]"],
+["CUDA.blockIdx().x", "KernelAbstractions.@index(Group, Cartesian)[1]"],
+["CUDA.blockIdx().y", "KernelAbstractions.@index(Group, Cartesian)[2]"],
+["CUDA.blockIdx().z", "KernelAbstractions.@index(Group, Cartesian)[3]"],
 
 ["CUDA.blockDim().x", "KernelAbstractions.@groupsize()[1]"],
 ["CUDA.blockDim().y", "KernelAbstractions.@groupsize()[2]"],
@@ -20,8 +20,8 @@ replacements = [
 
 
 
-["CUDA.CuArray(args__)", "KAUtils.ArrayConstructor(args...)"],
-["CUDA.CuArray{t_}(args__)", "KAUtils.ArrayConstructor{t}(args...)"],
+["CUDA.CuArray(args__)", "KAUtils.ArrayConstructor(KAUtils.get_backend(), args...)"],
+["CUDA.CuArray{t_}(args__)", "KAUtils.ArrayConstructor{t}(KAUtils.get_backend(), args...)"],
 ["CUDA.CuDeviceArray(args__)", "GPUArrays.AbstractGPUArray(args...)"],
 ["CUDA.CuDeviceArray{t__}(args__)", "GPUArrays.AbstractGPUArray{t...}(args...)"],
 ["v_::CUDA.CuArray", "v::GPUArrays.AbstractGPUArray"],
@@ -36,9 +36,9 @@ replacements = [
 
 ["CUDA.@cuStaticSharedMem(T_, dims_)", "@localmem T dims"],
 
-["CUDA.synchronize()", "KernelAbstractions.synchronize(backend)"],
+["CUDA.synchronize()", "KernelAbstractions.synchronize(KAUtils.get_backend())"],
 ["CUDA.sync_threads()", "KernelAbstractions.@synchronize()"],
-["CUDA.@sync(body_)", "begin body ; KernelAbstractions.synchronize(backend) end"],
+["CUDA.@sync(body_)", "begin body ; KernelAbstractions.synchronize(KAUtils.get_backend()) end"],
 
 ["CUDA.@cuprintln(args__)", "KernelAbstractions.@print(args...)"], #TODO: add line jump
 
@@ -55,10 +55,10 @@ replacements = [
 ["CUDA.AS.Local", "5"],
 
 
-["CUDA.zeros(args__)", "KAUtils.zeros(backend, args)"],
-["CUDA.ones(args__)", "KAUtils.ones(backend, args)"],
+["CUDA.zeros(args__)", "KAUtils.zeros(KAUtils.get_backend(), args...)"],
+["CUDA.ones(args__)", "KAUtils.ones(KAUtils.get_backend(), args...)"],
 
-["CUDA.available_memory()", "KAUtils.available_memory(backend)", FreeMemorySimulated()]
+["CUDA.available_memory()", "KAUtils.available_memory(KAUtils.get_backend())", FreeMemorySimulated()]
 ]
 
 function process(ast, kernel_names)
@@ -74,6 +74,9 @@ function unsplat_fargs(ast)
     new_ast = prewalk_once(ast) do node
 	    if @capture(node, f_(arg_...))
 			return Expr(node.head, f, arg...)
+		end
+		if @capture(node, f_(arg_, arg2_...))
+			return Expr(node.head, f, arg, arg2...)
 		end
 		if @capture(node, @f_(arg_...))
 			return Expr(:macrocall, f, LineNumberNode(0), arg...)

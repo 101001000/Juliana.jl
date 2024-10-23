@@ -1,9 +1,23 @@
 
 function postprocess(ast, output_dir)
 	SyntaxTree.linefilter!(ast)
+	ast = append_usingKA(ast)
 	ast = remove_kernel_annotations(ast)
+	ast = MacroTools.flatten(ast)
 	warn_missing_translation(ast)
 	save_fat_ast(ast, output_dir)
+end
+
+function append_usingKA(ast)
+	ast = MacroTools.postwalk(ast) do node
+		if node isa Expr
+			if node.head == :file
+				return Expr(:file, node.args[1], :(using KernelAbstractions, Juliana), node.args[2:end]...)
+			end
+		end
+		return node
+	end
+	return ast
 end
 
 function save_fat_ast(ast, output_dir)
@@ -22,7 +36,6 @@ function save_fat_ast(ast, output_dir)
 		return node
 	end
 	output_path = joinpath(output_dir, thin_ast.args[1])
-	@info dirname(output_path)
 	mkpath(dirname(output_path))
 	@info "Storing file in " * output_dir * "/" * thin_ast.args[1] 
 	file_output = open(output_dir * "/" * ast.args[1], "w")

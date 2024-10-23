@@ -1,6 +1,7 @@
 module KAUtils
 
     using KernelAbstractions
+    using CUDA
     import GPUArrays.DataRef
     export ArrayConstructor, ktime
 
@@ -22,6 +23,10 @@ module KAUtils
     #        BenchmarkTools.@btime $ex evals=1 samples=1
     #    end
     #end
+
+    function get_backend()
+        return CUDABackend()
+    end
 
     function ArrayConstructor(backend, arr)
         d_arr = KernelAbstractions.allocate(backend, eltype(arr), size(arr))
