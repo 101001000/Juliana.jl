@@ -18,15 +18,30 @@ replacements = [
 ["CUDA.gridDim().y", "ceil(Int, KernelAbstractions.@ndrange()[2] / KernelAbstractions.@groupsize()[2])"],
 ["CUDA.gridDim().z", "ceil(Int, KernelAbstractions.@ndrange()[3] / KernelAbstractions.@groupsize()[3])"],
 
+
+
 ["CUDA.CuArray(args__)", "KAUtils.ArrayConstructor(args...)"],
 ["CUDA.CuArray{t_}(args__)", "KAUtils.ArrayConstructor{t}(args...)"],
+["CUDA.CuDeviceArray(args__)", "GPUArrays.AbstractGPUArray(args...)"],
+["CUDA.CuDeviceArray{t__}(args__)", "GPUArrays.AbstractGPUArray{t...}(args...)"],
+["v_::CUDA.CuArray", "v::GPUArrays.AbstractGPUArray"],
+["v_::CUDA.CuArray{t__}", "v::GPUArrays.AbstractGPUArray{t...}"],
+["v_::CUDA.CuDeviceArray", "v::GPUArrays.AbstractGPUArray"],
+["v_::CUDA.CuDeviceArray{t__}", "v::GPUArrays.AbstractGPUArray{t...}"],
+["CUDA.CuArray", "GPUArrays.AbstractGPUArray"],
+["CUDA.CuArray{t__}", "GPUArrays.AbstractGPUArray{t...}"],
+["CUDA.CuDeviceArray", "GPUArrays.AbstractGPUArray"],
+["CUDA.CuDeviceArray{t__}", "GPUArrays.AbstractGPUArray{t...}"],
 
-["v_::CUDA.CuArray", "v::AbstractGPUArray"],
-["CUDA.CuArray", "AbstractGPUArray"],
+
+["CUDA.@cuStaticSharedMem(T_, dims_)", "@localmem T dims"],
 
 ["CUDA.synchronize()", "KernelAbstractions.synchronize(backend)"],
 ["CUDA.sync_threads()", "KernelAbstractions.@synchronize()"],
+["CUDA.@sync(body_)", "begin body ; KernelAbstractions.synchronize(backend) end"],
+
 ["CUDA.@cuprintln(args__)", "KernelAbstractions.@print(args...)"], #TODO: add line jump
+
 
 ["CUDA.device()", "nothing", IncompatibleSymbolRemovedWarning("CUDA.device()")],
 ["CUDA.@profile discard__", "nothing", IncompatibleSymbolRemovedWarning("CUDA.@profile")],
@@ -39,9 +54,20 @@ replacements = [
 ["CUDA.AS.Constant", "4"],
 ["CUDA.AS.Local", "5"],
 
+
+["CUDA.zeros(args__)", "KAUtils.zeros(backend, args)"],
+["CUDA.ones(args__)", "KAUtils.ones(backend, args)"],
+
 ["CUDA.available_memory()", "KAUtils.available_memory(backend)", FreeMemorySimulated()]
 ]
 
+function process(ast, kernel_names)
+	ast = expr_replacer(ast)
+	ast = attr_replacer(ast)
+	ast = kcall_replacer(ast)
+	ast = process_kernels(ast, kernel_names)
+	return ast
+end
 
 # This only works with function/macro calls.
 function unsplat_fargs(ast)
