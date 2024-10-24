@@ -21,7 +21,9 @@ replacements = [
 
 
 ["CUDA.CuArray(args__)", "KAUtils.ArrayConstructor(KAUtils.get_backend(), args...)"],
-["CUDA.CuArray{t_}(args__)", "KAUtils.ArrayConstructor{t}(KAUtils.get_backend(), args...)"],
+["CUDA.CuArray{t_}(args__)", "KAUtils.ArrayConstructor(KAUtils.get_backend(), t, args...)"],
+["CUDA.CuArray{t_, d_}(args__)", "KAUtils.ArrayConstructor(KAUtils.get_backend(), t, args...)"], #TODO: I'm ignoring here dimensions. Check if this can be done
+
 ["CUDA.CuDeviceArray(args__)", "GPUArrays.AbstractGPUArray(args...)"],
 ["CUDA.CuDeviceArray{t__}(args__)", "GPUArrays.AbstractGPUArray{t...}(args...)"],
 ["v_::CUDA.CuArray", "v::GPUArrays.AbstractGPUArray"],
@@ -72,11 +74,15 @@ end
 # This only works with function/macro calls.
 function unsplat_fargs(ast)
     new_ast = prewalk_once(ast) do node
+		#TODO: Make this cleaner.
 	    if @capture(node, f_(arg_...))
 			return Expr(node.head, f, arg...)
 		end
 		if @capture(node, f_(arg_, arg2_...))
 			return Expr(node.head, f, arg, arg2...)
+		end
+		if @capture(node, f_(arg_, arg2_, arg3_...))
+			return Expr(node.head, f, arg, arg2, arg3...)
 		end
 		if @capture(node, @f_(arg_...))
 			return Expr(:macrocall, f, LineNumberNode(0), arg...)
@@ -168,7 +174,7 @@ function kcall_replacer(ast)
     		
 			kcall_name = Symbol("kernel_call_" * string(kcalls_replaced))
 
-			kernel_ass = Expr(Symbol("="), kcall_name, Expr(:call, kname, :backend, convert_call, tuple_mult))
+			kernel_ass = Expr(Symbol("="), kcall_name, Expr(:call, kname, :(KAUtils.get_backend()), convert_call, tuple_mult))
 			kernel_call = Expr(:call, kcall_name, kargs...)
 		
 			global kcalls_replaced += 1;

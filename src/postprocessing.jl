@@ -12,7 +12,7 @@ function append_usingKA(ast)
 	ast = MacroTools.postwalk(ast) do node
 		if node isa Expr
 			if node.head == :file
-				return Expr(:file, node.args[1], :(using KernelAbstractions, Juliana), node.args[2:end]...)
+				return Expr(:file, node.args[1], :(using KernelAbstractions, Juliana, GPUArrays), node.args[2:end]...)
 			end
 		end
 		return node
@@ -23,12 +23,13 @@ end
 function save_fat_ast(ast, output_dir)
 	@assert ast isa Expr
 	@assert ast.head == :file
-	thin_ast = MacroTools.postwalk(ast) do node
+	thin_ast = MacroTools.prewalk(ast) do node
 		if node isa Expr
 			if node.head == :file && node != ast
 				if node.args[1] != ast.args[1]
 					filepath = node.args[1]
 					save_fat_ast(node, output_dir)
+					filepath = dirname(ast.args[1]) == "" ? filepath : relpath(filepath, dirname(ast.args[1]))
 					return :(include($(filepath)))
 				end
 			end
@@ -77,8 +78,11 @@ function warn_missing_translation(ast)
 			end
 			for i in eachindex(node.args) 
 				if node.args[i] == :CUDA
-					if node.args[i+1].value in cuda_symbols
-						emit_warning(UntranslatedWarning(string(node)))
+					try
+						if node.args[i+1].value in cuda_symbols
+							emit_warning(UntranslatedWarning(string(node)))
+						end
+					catch
 					end
 				end
 			end

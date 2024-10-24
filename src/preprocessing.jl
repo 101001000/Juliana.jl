@@ -14,27 +14,25 @@ function preprocess(filepath)
 end
 
 # filename is relative to the main translating file. Dir is where filename is located in a first instance.
-function load_fat_ast(filename, dir)
+function load_fat_ast(filepath, ref_dir)
 	
-	filepath = joinpath(dir, filename)
+	@info "Loading file in " * joinpath(ref_dir, filepath)
 
-	if !isfile(filepath)
-		throw(ErrorException(filepath * " not found"))
+	if !isfile(joinpath(ref_dir, filepath))
+		throw(ErrorException(joinpath(ref_dir, filepath) * " not found"))
 	end
 
-	file_input = open(filepath, "r")
+	file_input = open(joinpath(ref_dir, filepath), "r")
     str = read(file_input, String)
     close(file_input)
 	
 	str_ce = comment_encode(str)
 	
-	ast = Expr(:file, filename, Meta.parse("begin " * str_ce * " end").args...)
+	ast = Expr(:file, filepath, Meta.parse("begin " * str_ce * " end").args...)
 
 	ast_fat = MacroTools.postwalk(ast) do node
-		if MacroTools.@capture(node, include(name_))
-			@debug "File inclussion found, translating recursively..."
-			load_path = dirname(filename) == "" ? name : dirname(filename) * "/" * name
-			sub_ast = load_fat_ast(load_path, dir)
+		if MacroTools.@capture(node, include(includefilepath_))
+			sub_ast = load_fat_ast(joinpath(dirname(filepath), includefilepath), ref_dir)
 			return sub_ast
 		end
 		return node
@@ -150,6 +148,10 @@ function fcall_inliner(ast, fmap, fnames_to_inline)
     return new_ast
 end
 
+function drop_type(expr)
+	return expr #TODO
+end
+
 # Look for CUDA symbols without the CUDA prefix and add it.
 # Store in each scope the symbols overwritten to avoid adding the CUDA namespace to user overwritten symbols.
 function CUDA_symbol_check(ast, convert=true)
@@ -161,7 +163,7 @@ function CUDA_symbol_check(ast, convert=true)
 			if @capture(node, function name_(args__) body__ end)
 				push!(envs[end], name)
 				for arg in args
-					push!(envs[end], arg)
+					push!(envs[end], drop_type(arg))
 				end
 			end
 			if @capture(node, function name_(args__) where {types__} body__ end)
