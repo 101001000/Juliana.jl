@@ -42,6 +42,7 @@ function save_fat_ast(ast, output_dir)
 	file_output = open(output_dir * "/" * ast.args[1], "w")
 	str = node_to_string(thin_ast)
 	str = replace_interpolation(str)
+	str = replace_quoting(str)
     write(file_output, str)
     close(file_output)
 end
@@ -99,5 +100,20 @@ function replace_interpolation(str)
         new_str = match(inside_pattern, m.match).captures[1]
         str = replace(str, m.match => "\$" * new_str)
     end
+    return str
+end
+
+function replace_quoting(str)
+	#@error "before"
+	#@error str
+    pattern = r"\$\((Expr\(:quote, :\w+\))\)"
+    inside_pattern = r"\$\(Expr\(:quote, :(.*?)\)\)"
+    for m in eachmatch(pattern, str)
+		#@error "FOUND"
+        new_str = match(inside_pattern, m.match).captures[1]
+        str = replace(str, m.match => ":(" * new_str * ")")
+    end
+	#@error "after"
+	#@error str
     return str
 end
