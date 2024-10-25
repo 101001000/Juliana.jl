@@ -7,8 +7,11 @@ function preprocess(filepath)
 	ast = CUDA_symbol_check(ast, true)
 	ast = remove_unnecessary_prefix(ast)
 	kernel_names = extract_kernelnames(ast)
+	@debug "Kernel names: " * string(kernel_names)
 	deps, defs = extract_dep_graph(ast)
+	@debug "Function deps: " *string(deps)
 	fnames_to_inline = setdiff(extract_fnames_to_inline(ast, deps), kernel_names)
+	@debug "Functions to inline: " * string(fnames_to_inline)
 	ast = fcall_inliner(ast, defs, fnames_to_inline)
 	return ast, kernel_names
 end
@@ -124,9 +127,28 @@ function letify_func(ast, args_map)
 	Expr(:let, Expr(:block), Expr(:block, new_ast.args[2], var))
 end
 
+# Check if a function calls kernel constructs.
+function is_kernel_function(func)
+	@assert(@capture(func, function fname_(fargs__) fbody_ end))
+	is_kernel = false
+	MacroTools.postwalk(func) do node
+		is_kernel |= @capture(node, threadIdx()) #TODO: expand this list
+		return node
+	end
+	return is_kernel
+end
 
 function extract_fnames_to_inline(ast, deps)
-	return []
+	fnames = []
+	MacroTools.postwalk(ast) do node
+		if @capture(node, function fname_(fargs__) fbody_ end)
+			if is_kernel_function(node)
+				push!(fnames, fname) #TODO: unroll deps
+			end
+		end
+		return node
+	end
+	return []	
 end
 
 
