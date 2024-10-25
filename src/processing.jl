@@ -20,22 +20,35 @@ replacements = [
 
 
 
+
+#CuArray constructor:
 ["CUDA.CuArray(args__)", "KAUtils.ArrayConstructor(KAUtils.get_backend(), args...)"],
 ["CUDA.CuArray{t_}(args__)", "KAUtils.ArrayConstructor(KAUtils.get_backend(), t, args...)"],
 ["CUDA.CuArray{t_, d_}(args__)", "KAUtils.ArrayConstructor(KAUtils.get_backend(), t, args...)"], #TODO: I'm ignoring here dimensions. Check if this can be done
 
+#CuDeviceArray constructor:
 ["CUDA.CuDeviceArray(args__)", "GPUArrays.AbstractGPUArray(args...)"],
-["CUDA.CuDeviceArray{t__}(args__)", "GPUArrays.AbstractGPUArray{t...}(args...)"],
+["CUDA.CuDeviceArray{t1_}(args__)", "GPUArrays.AbstractGPUArray{t1}(args...)"],
+["CUDA.CuDeviceArray{t1_, t2_}(args__)", "GPUArrays.AbstractGPUArray{t1, t2}(args...)"],
+["CUDA.CuDeviceArray{t1_, t2_, t3_}(args__)", "GPUArrays.AbstractGPUArray{t1, t2, t3}(args...)"],
+
+#CuArray typ:
+
 ["v_::CUDA.CuArray", "v::GPUArrays.AbstractGPUArray"],
 ["v_::CUDA.CuArray{t__}", "v::GPUArrays.AbstractGPUArray{t...}"],
 ["v_::CUDA.CuDeviceArray", "v::GPUArrays.AbstractGPUArray"],
-["v_::CUDA.CuDeviceArray{t__}", "v::GPUArrays.AbstractGPUArray{t...}"],
+["v_::CUDA.CuDeviceArray{t1_}", "v::DenseArray{t1}"],
+["v_::CUDA.CuDeviceArray{t1_, t2_}", "v::GPUArrays.AbstractGPUArray{t1, t2}"],
+["v_::CUDA.CuDeviceArray{t1_, t2_, t3_}", "v::GPUArrays.AbstractGPUArray{t1, t2, t3}"],
+
+
 ["CUDA.CuArray", "GPUArrays.AbstractGPUArray"],
 ["CUDA.CuArray{t__}", "GPUArrays.AbstractGPUArray{t...}"],
 ["CUDA.CuDeviceArray", "GPUArrays.AbstractGPUArray"],
 ["CUDA.CuDeviceArray{t__}", "GPUArrays.AbstractGPUArray{t...}"],
 
 
+["CUDA.CuDynamicSharedArray(T_, dims_)", "@localmem T dims", DynamicSMArrayToStaticSMArrayWarning()],
 ["CUDA.@cuStaticSharedMem(T_, dims_)", "@localmem T dims"],
 
 ["CUDA.synchronize()", "KernelAbstractions.synchronize(KAUtils.get_backend())"],
