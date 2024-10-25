@@ -65,11 +65,20 @@ function extract_dep_graph(ast)
 	return deps, defs
 end
 
+function uninterpolate(expr)
+	if expr isa Expr
+		if expr.head == Symbol("\$")
+			return expr.args[1]
+		end
+	end
+	return expr
+end
+
 function extract_kernelnames(ast)
 	knames = []
 	MacroTools.postwalk(ast) do node
 		if @capture(node, CUDA.@cuda args__ kname_(kargs__))
-			push!(knames, kname)
+			push!(knames, uninterpolate(kname))
 		end
 		return node
 	end
