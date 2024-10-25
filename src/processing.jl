@@ -139,13 +139,19 @@ function process_kernel(ast)
 end
 
 function process_kernels(ast, kernel_names)
+	processed_kernels = []
 	new_ast = MacroTools.postwalk(ast) do node
 		if @capture(node, function fname_(fargs__) fbody_ end)
 			if fname in kernel_names
+				push!(processed_kernels, fname)
 				return process_kernel(node)
 			end
 		end
 		return node
+	end
+	pending_kernels = setdiff(kernel_names, processed_kernels)
+	if !isempty(pending_kernels)
+		emit_warning(UnprocessedKernels(string(pending_kernels)))
 	end
 	return new_ast
 end
