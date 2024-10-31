@@ -73,7 +73,10 @@ replacements = [
 ["CUDA.zeros(args__)", "KAUtils.zeros(KAUtils.get_backend(), args...)"],
 ["CUDA.ones(args__)", "KAUtils.ones(KAUtils.get_backend(), args...)"],
 
-["CUDA.available_memory()", "KAUtils.available_memory(KAUtils.get_backend())", FreeMemorySimulated()]
+["CUDA.available_memory()", "KAUtils.available_memory(KAUtils.get_backend())", FreeMemorySimulated()],
+
+["using CUDA", "using CUDA, KernelAbstractions, Juliana, GPUArrays"],
+
 ]
 
 function process(ast, kernel_names)
