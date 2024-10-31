@@ -1,6 +1,6 @@
 function node_to_string(node)
 	io = IOBuffer()
-	show_unquoted(io, node, 0, -1)
+	show_unquoted(IOContext(io, :unquote_fallback => false), node, 0, -1)
 	return String(take!(io))
 end
 
