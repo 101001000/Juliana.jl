@@ -67,7 +67,15 @@ function dump_gpu_info()
         end
     end
     jsonString = JSON.json(atts)
-    open("gpu-info/" * replace(name(dev), " " => "_") * ".json", "w") do file
+    open("gpu-presets/" * replace(name(dev), " " => "_") * ".json", "w") do file
         write(file, jsonString)
     end
+end
+
+
+# Quoting makes this anoying double body thing. 
+function create_func(name, args, body)
+	f = :(function $name($args...) $body end)
+	f.args[2].args = f.args[2].args[3].args
+	return unsplat_fargs(f)
 end

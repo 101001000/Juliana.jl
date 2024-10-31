@@ -10,10 +10,11 @@ function preprocess(filepath)
 	@debug "Kernel names: " * string(kernel_names)
 	deps, defs = extract_dep_graph(ast)
 	@debug "Function deps: " *string(deps)
-	fnames_to_inline = setdiff(extract_fnames_to_inline(ast, deps), kernel_names)
-	@debug "Functions to inline: " * string(fnames_to_inline)
-	ast = fcall_inliner(ast, defs, fnames_to_inline)
-	return ast, kernel_names
+	#@debug "Function defs: " *string(defs)
+	for key in keys(defs)
+		@debug string(key)
+	end
+	return ast, kernel_names, defs
 end
 
 # filename is relative to the main translating file. Dir is where filename is located in a first instance.
@@ -54,6 +55,10 @@ function extract_dep_graph(ast)
 	caller = nothing
 	MacroTools.prewalk(ast) do node
 		if @capture(node, function fname_(fargs__) body_ end)
+			defs[fname] = node
+			caller = fname		
+		end
+		if @capture(node, function fname_(fargs__) where {T__} body_ end)
 			defs[fname] = node
 			caller = fname		
 		end
@@ -113,19 +118,7 @@ function replace_returns_fun(ast)
 	return push_expr_fun(new_ast, :(@label $(Symbol(label_name))))
 end
 
-function letify_func(ast, args_map)
-	@assert(@capture(ast, function fname_(fargs__) fbody_ end))
-	var = Symbol("var_" * string(fname))
-	ast = replace_returns_fun(ast)
-	new_ast = MacroTools.postwalk(ast) do node
-		if node in keys(args_map)
-			return args_map[node]
-		else
-			return node
-		end
-	end
-	Expr(:let, Expr(:block), Expr(:block, new_ast.args[2], var))
-end
+
 
 # Check if a function calls kernel constructs.
 function is_kernel_function(func)
@@ -148,7 +141,7 @@ function extract_fnames_to_inline(ast, deps)
 		end
 		return node
 	end
-	return []	
+	return [:load_c]	
 end
 
 
@@ -163,25 +156,6 @@ end
 #					1+1 instead 2 + 1
 #				end
 
-function fcall_inliner(ast, fmap, fnames_to_inline)
-    new_ast = prewalk_parent_info((node, parent) -> begin
-        if @capture(node, fname_(fargs__)) && !@capture(parent, function fname2_(fargs2__) fbody2_ end)
-            if fname in fnames_to_inline 
-				args_map = Dict()
-				for i in eachindex(fargs)
-					args_map[fmap[fname].args[1].args[i+1]] = fargs[i] 
-				end
-                return letify_func(fmap[fname], args_map)
-            end
-        end
-        return node
-    end, ast, nothing)
-    return new_ast
-end
-
-function drop_type(expr)
-	return expr #TODO
-end
 
 # Look for CUDA symbols without the CUDA prefix and add it.
 # Store in each scope the symbols overwritten to avoid adding the CUDA namespace to user overwritten symbols.

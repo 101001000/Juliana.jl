@@ -34,8 +34,9 @@ module Juliana
 
 	function translate_file(filepath, output_dir)
 		@info "Translating " * filepath
-		ast, kernel_names = preprocess(filepath)
-		ast = process(ast, kernel_names)
+		ast, kernel_names, defs = preprocess(filepath)
+		push!(kernel_names, :matmul_pipelined)
+		ast = process(ast, kernel_names, defs)
 		ast = postprocess(ast, output_dir)	
 		println("Warnings: ")
     	print_warnings()

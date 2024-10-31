@@ -79,11 +79,11 @@ replacements = [
 
 ]
 
-function process(ast, kernel_names)
+function process(ast, kernel_names, defs)
 	ast = expr_replacer(ast)
 	ast = attr_replacer(ast)
 	ast = kcall_replacer(ast)
-	ast = process_kernels(ast, kernel_names)
+	ast = process_kernels(ast, kernel_names, defs)
 	return ast
 end
 
@@ -139,28 +139,79 @@ function macro_wrap(ast, macro_symbol)
 	return Expr(:macrocall, macro_symbol, LineNumberNode(1, :none), ast)
 end
 
-# Quoting makes this anoying double body thing. 
-function create_func(name, args, body)
-	f = :(function $name($args...) $body end)
-	f.args[2].args = f.args[2].args[3].args
-	return unsplat_fargs(f)
+
+function drop_generics_fdef(ast)
+	if @capture(ast, function fname_(fargs__) where {ftypes__} body_ end)
+		return create_func(fname, fargs, body)
+	end
+	return ast
 end
 
+function drop_module(expr)
+	if @capture(expr, M_.fname_)
+		return fname
+	end
+	return expr
+end
 
-function process_kernel(ast)
+function fcall_inliner(ast, fmap, fnames_to_inline)
+    new_ast = MacroTools.prewalk(ast) do node 
+		@error "checking" * string(node)
+        if @capture(node, fname_(fargs__))
+            if fname in fnames_to_inline 
+				@error "Inlining " * string(fname)
+				args_map = Dict()
+				for i in eachindex(fargs)
+					args_map[fmap[drop_module(fname)].args[1].args[i+1]] = fargs[i] 
+				end
+                return letify_func(fmap[drop_module(fname)], args_map)
+            end
+        end
+        return node
+    end
+    return new_ast
+end
+
+function drop_type(expr)
+	return expr #TODO
+end
+
+function letify_func(ast, args_map)
+	ast = drop_generics_fdef(ast)
+	@assert(@capture(ast, function fname_(fargs__) fbody_ end))
+	var = Symbol("var_" * string(fname))
+	ast = replace_returns_fun(ast)
+	new_ast = MacroTools.postwalk(ast) do node
+		if node in keys(args_map)
+			return args_map[node]
+		else
+			return node
+		end
+	end
+	Expr(:let, Expr(:block), Expr(:block, new_ast.args[2], var))
+end
+
+function process_kernel(ast, defs)
+
+	#fnames_to_inline = setdiff(extract_fnames_to_inline(ast, deps), kernel_names)
+	fnames_to_inline = [:(Operator.load_c)]
+	@debug "Functions to inline: " * string(fnames_to_inline)
+	@error "Calling fcall on: " * string(ast)
+	ast = fcall_inliner(ast, defs, fnames_to_inline)
+
 	ast = replace_returns_fun(ast)
 	ast = macro_wrap(ast, Symbol("@kernel"))
 	ast = constantify_kernel(ast)
 	return ast
 end
 
-function process_kernels(ast, kernel_names)
+function process_kernels(ast, kernel_names, defs)
 	processed_kernels = []
 	new_ast = MacroTools.postwalk(ast) do node
 		if @capture(node, function fname_(fargs__) fbody_ end)
 			if fname in kernel_names
 				push!(processed_kernels, fname)
-				return process_kernel(node)
+				return process_kernel(node, defs)
 			end
 		end
 		return node
