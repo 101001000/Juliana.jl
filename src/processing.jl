@@ -79,10 +79,10 @@ replacements = [
 
 ]
 
-function process(ast, kernel_names, require_ctx_funcs)
+function process(ast, kernel_names, require_ctx_funcs, gpu_sim)
 	ast = add_ctx(ast, require_ctx_funcs)
 	ast = expr_replacer(ast)
-	ast = attr_replacer(ast)
+	ast = attr_replacer(ast, gpu_sim)
 	ast = kcall_replacer(ast)
 	ast = process_kernels(ast, kernel_names)
 	return ast
@@ -266,7 +266,7 @@ function merge_env(ast, env)
     return new_ast
 end
 
-function attr_replacer(ast, gpu="NVIDIA_GeForce_GTX_950")
+function attr_replacer(ast, gpu)
    attr_dict = Dict() 
    open(joinpath(@__DIR__ ,  "../gpu-presets/$(gpu).json"), "r") do file
         data = JSON.parse(file)

@@ -1,3 +1,5 @@
+using CUDA
+
 function node_to_string(node)
 	io = IOBuffer()
 	show_unquoted(IOContext(io, :unquote_fallback => false), node, 0, -1)
@@ -64,7 +66,7 @@ function prewalk_parent_info(f, node, parent)
 end
 
 function dump_gpu_info()
-    dev = device()
+    dev = CUDA.device()
     atts = Dict()
     for CUatt in instances(CUDA.CUdevice_attribute_enum)
         try
@@ -74,9 +76,12 @@ function dump_gpu_info()
         end
     end
     jsonString = JSON.json(atts)
-    open("gpu-presets/" * replace(name(dev), " " => "_") * ".json", "w") do file
+	filepath = joinpath(@__DIR__, "..", "gpu-presets", replace(name(dev), " " => "_") * ".json")
+	mkpath(dirname(filepath))
+    open(filepath, "w") do file
         write(file, jsonString)
     end
+	@info filepath * " file generated"
 end
 
 
