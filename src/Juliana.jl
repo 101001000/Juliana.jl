@@ -16,7 +16,7 @@ module Juliana
 	export translate_file, translate_pkg, dump_gpu_info
 	export KAUtils
 
-	function translate_pkg(pkg_input_path, pkg_output_path)
+	function translate_pkg(pkg_input_path, pkg_output_path, extra_knames=[], extra_kfuncs=[])
 		toml_path = pkg_input_path * "/Project.toml"
 		toml_file = TOML.parsefile(toml_path)
 		toml_file["deps"]["KernelAbstractions"] = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
@@ -29,14 +29,13 @@ module Juliana
 		@info "Translating the package " * pkg_name
 		main_file_path = pkg_input_path * "/src/" * pkg_name * ".jl"
 		Base.Filesystem.cptree(pkg_input_path, pkg_output_path, force=true)
-		translate_file(main_file_path, pkg_output_path * "/src/")		
+		translate_file(main_file_path, pkg_output_path * "/src/", extra_knames, extra_kfuncs)		
 	end
 
-	function translate_file(filepath, output_dir)
+	function translate_file(filepath, output_dir, extra_knames=[], extra_kfuncs=[])
 		@info "Translating " * filepath
-		ast, kernel_names, defs = preprocess(filepath)
-		push!(kernel_names, :matmul_pipelined)
-		ast = process(ast, kernel_names, defs)
+		ast, kernel_names, require_ctx_funcs = preprocess(filepath, extra_knames, extra_kfuncs)
+		ast = process(ast, kernel_names, require_ctx_funcs)
 		ast = postprocess(ast, output_dir)	
 		println("Warnings: ")
     	print_warnings()

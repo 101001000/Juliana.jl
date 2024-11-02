@@ -2,19 +2,36 @@ import CUDA
 import SyntaxTree
 
 
-function preprocess(filepath)
+function preprocess(filepath, extra_knames=[], extra_kfuncs=[])
 	ast = load_fat_ast(basename(filepath), dirname(filepath))
 	ast = CUDA_symbol_check(ast, true)
 	ast = remove_unnecessary_prefix(ast)
-	kernel_names = extract_kernelnames(ast)
+
+	deps = extract_dep_graph(ast)
+	kernel_names = extract_kernelnames(ast)	
+	kernel_funcs = extract_kfunctions(ast)
+
+	union!(kernel_names, extra_knames)
+	union!(kernel_funcs, extra_kfuncs)
+
 	@debug "Kernel names: " * string(kernel_names)
-	deps, defs = extract_dep_graph(ast)
+	@debug "Kernel funcs: " * string(kernel_funcs)
 	@debug "Function deps: " *string(deps)
-	#@debug "Function defs: " *string(defs)
-	for key in keys(defs)
-		@debug string(key)
+
+	require_ctx_funcs = kernel_funcs
+
+	while true
+		old_size = length(require_ctx_funcs)
+		for fun in require_ctx_funcs
+			union!(require_ctx_funcs, fun in keys(deps) ? deps[fun] : Set())
+		end
+		(old_size != length(require_ctx_funcs)) || break
 	end
-	return ast, kernel_names, defs
+
+	require_ctx_funcs = setdiff(require_ctx_funcs, kernel_names)
+
+	@debug "Require ctx funcs: " * string(require_ctx_funcs)
+	return ast, kernel_names, require_ctx_funcs
 end
 
 # filename is relative to the main translating file. Dir is where filename is located in a first instance.
@@ -49,28 +66,33 @@ function comment_encode(str)
 	return str
 end
 
+#TODO: Make this module aware.
 function extract_dep_graph(ast)
-	defs = Dict() # A map of fname -> fast
 	deps = Dict()
+	defs = Set()
 	caller = nothing
 	MacroTools.prewalk(ast) do node
-		if @capture(node, function fname_(fargs__) body_ end)
-			defs[fname] = node
-			caller = fname		
+		if @capture(node, function callerf_(fargs__) body_ end)
+			caller = callerf
+			push!(defs, drop_module(caller))
 		end
-		if @capture(node, function fname_(fargs__) where {T__} body_ end)
-			defs[fname] = node
-			caller = fname		
+		if @capture(node, function callerf_(fargs__) where {T__} body_ end)
+			caller = callerf
+			push!(defs, drop_module(caller))
 		end
-		if @capture(node, fname_(fargs__)) && fname != caller
-			push!(get!(deps, caller, []), fname)
+		if @capture(node, callee_(fargs__)) && drop_module(callee) != drop_module(caller)
+			push!(get!(deps, drop_module(callee), Set()), drop_module(caller))
 		end
 		return node
 	end
-	for key in keys(deps)
-		deps[key] = intersect(deps[key], keys(defs))
+	for key in collect(keys(deps))
+		if key in defs
+			deps[key] = intersect(deps[key], defs)
+		else
+			delete!(deps, key)
+		end
 	end
-	return deps, defs
+	return deps
 end
 
 function uninterpolate(expr)
@@ -91,6 +113,32 @@ function extract_kernelnames(ast)
 		return node
 	end
 	return knames
+end
+
+# Check if a function calls kernel constructs.
+function is_kernel_function(func)
+	@assert(@capture(func, (function fname_(fargs__) fbody_ end) |  (function fname_(fargs__) where {T__} fbody_ end)))
+	is_kernel = false
+	MacroTools.postwalk(func) do node
+		is_kernel |= @capture(node, CUDA.threadIdx()) #TODO: expand this list
+		return node
+	end
+	return is_kernel
+end
+
+# Retrieve functions which require kernel constructs
+function extract_kfunctions(ast)
+	kfuncs = Set()
+	MacroTools.postwalk(ast) do node
+		if @capture(node, (function fname_(fargs__) fbody_ end) | (function fname_(fargs__) where {T__} fbody_ end))
+			#@debug "checking if is kernel " * string(node)
+			if is_kernel_function(node)
+				push!(kfuncs, drop_module(fname))
+			end
+		end
+		return node
+	end
+	return kfuncs
 end
 
 
@@ -120,41 +168,6 @@ end
 
 
 
-# Check if a function calls kernel constructs.
-function is_kernel_function(func)
-	@assert(@capture(func, function fname_(fargs__) fbody_ end))
-	is_kernel = false
-	MacroTools.postwalk(func) do node
-		is_kernel |= @capture(node, threadIdx()) #TODO: expand this list
-		return node
-	end
-	return is_kernel
-end
-
-function extract_fnames_to_inline(ast, deps)
-	fnames = []
-	MacroTools.postwalk(ast) do node
-		if @capture(node, function fname_(fargs__) fbody_ end)
-			if is_kernel_function(node)
-				push!(fnames, fname) #TODO: unroll deps
-			end
-		end
-		return node
-	end
-	return [:load_c]	
-end
-
-
-#TODO: This inlining has issues with arguments replacement.
-#	function test(a)
-#		a *= 2
-#		return a + 1
-#	end
-#
-#	test(1) -> let 
-#					1*=2
-#					1+1 instead 2 + 1
-#				end
 
 
 # Look for CUDA symbols without the CUDA prefix and add it.

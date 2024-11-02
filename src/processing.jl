@@ -48,7 +48,7 @@ replacements = [
 ["CUDA.CuDeviceArray{t__}", "GPUArrays.AbstractGPUArray{t...}"],
 
 
-["CUDA.CuDynamicSharedArray(T_, dims_)", "@localmem T dims", DynamicSMArrayToStaticSMArrayWarning()],
+#["CUDA.CuDynamicSharedArray(T_, dims_)", "@localmem T dims", DynamicSMArrayToStaticSMArrayWarning()],
 ["CUDA.@cuStaticSharedMem(T_, dims_)", "@localmem T dims"],
 
 ["CUDA.synchronize()", "KernelAbstractions.synchronize(KAUtils.get_backend())"],
@@ -79,12 +79,26 @@ replacements = [
 
 ]
 
-function process(ast, kernel_names, defs)
+function process(ast, kernel_names, require_ctx_funcs)
+	ast = add_ctx(ast, require_ctx_funcs)
 	ast = expr_replacer(ast)
 	ast = attr_replacer(ast)
 	ast = kcall_replacer(ast)
-	ast = process_kernels(ast, kernel_names, defs)
+	ast = process_kernels(ast, kernel_names)
 	return ast
+end
+
+function add_ctx(ast, require_ctx_funcs)
+	ast = MacroTools.postwalk(ast) do node
+		if @capture(node, fname_(fargs__))
+			if drop_module(fname) in require_ctx_funcs
+				new_node = deepcopy(node)
+				insert!(new_node.args, 2, :(KernelAbstractions.@context))
+				return new_node
+			end
+		end
+		return node
+	end
 end
 
 # This only works with function/macro calls.
@@ -147,19 +161,12 @@ function drop_generics_fdef(ast)
 	return ast
 end
 
-function drop_module(expr)
-	if @capture(expr, M_.fname_)
-		return fname
-	end
-	return expr
-end
 
 function fcall_inliner(ast, fmap, fnames_to_inline)
     new_ast = MacroTools.prewalk(ast) do node 
-		@error "checking" * string(node)
         if @capture(node, fname_(fargs__))
             if fname in fnames_to_inline 
-				@error "Inlining " * string(fname)
+				@debug "Inlining " * string(fname)
 				args_map = Dict()
 				for i in eachindex(fargs)
 					args_map[fmap[drop_module(fname)].args[1].args[i+1]] = fargs[i] 
@@ -191,27 +198,20 @@ function letify_func(ast, args_map)
 	Expr(:let, Expr(:block), Expr(:block, new_ast.args[2], var))
 end
 
-function process_kernel(ast, defs)
-
-	#fnames_to_inline = setdiff(extract_fnames_to_inline(ast, deps), kernel_names)
-	fnames_to_inline = [:(Operator.load_c)]
-	@debug "Functions to inline: " * string(fnames_to_inline)
-	@error "Calling fcall on: " * string(ast)
-	ast = fcall_inliner(ast, defs, fnames_to_inline)
-
+function process_kernel(ast)
 	ast = replace_returns_fun(ast)
 	ast = macro_wrap(ast, Symbol("@kernel"))
 	ast = constantify_kernel(ast)
 	return ast
 end
 
-function process_kernels(ast, kernel_names, defs)
+function process_kernels(ast, kernel_names)
 	processed_kernels = []
 	new_ast = MacroTools.postwalk(ast) do node
 		if @capture(node, function fname_(fargs__) fbody_ end)
 			if fname in kernel_names
 				push!(processed_kernels, fname)
-				return process_kernel(node, defs)
+				return process_kernel(node)
 			end
 		end
 		return node

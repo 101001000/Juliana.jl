@@ -8,6 +8,13 @@ function wrap_with_namespace(node)
 	return Expr(:., :CUDA, QuoteNode(node))
 end
 
+function drop_module(expr)
+	if @capture(expr, M_.fname_)
+		return fname
+	end
+	return expr
+end
+
 
 # Special prewalk function which will skip the walking by returning nothing
 function skip_prewalk(f, node)
