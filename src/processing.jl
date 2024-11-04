@@ -101,26 +101,6 @@ function add_ctx(ast, require_ctx_funcs)
 	end
 end
 
-# This only works with function/macro calls.
-function unsplat_fargs(ast)
-    new_ast = prewalk_once(ast) do node
-		#TODO: Make this cleaner.
-	    if @capture(node, f_(arg_...))
-			return Expr(node.head, f, arg...)
-		end
-		if @capture(node, f_(arg_, arg2_...))
-			return Expr(node.head, f, arg, arg2...)
-		end
-		if @capture(node, f_(arg_, arg2_, arg3_...))
-			return Expr(node.head, f, arg, arg2, arg3...)
-		end
-		if @capture(node, @f_(arg_...))
-			return Expr(:macrocall, f, LineNumberNode(0), arg...)
-		end
-        return node
-    end
-    return new_ast
-end
 
 
 function constantify_kernel(ast)
@@ -154,6 +134,7 @@ function macro_wrap(ast, macro_symbol)
 end
 
 
+#TODO: I'm nuking the genereics in kernels. Maybe this should be revisited...
 function drop_generics_fdef(ast)
 	if @capture(ast, function fname_(fargs__) where {ftypes__} body_ end)
 		return create_func(fname, fargs, body)
@@ -162,41 +143,34 @@ function drop_generics_fdef(ast)
 end
 
 
-function fcall_inliner(ast, fmap, fnames_to_inline)
-    new_ast = MacroTools.prewalk(ast) do node 
-        if @capture(node, fname_(fargs__))
-            if fname in fnames_to_inline 
-				@debug "Inlining " * string(fname)
-				args_map = Dict()
-				for i in eachindex(fargs)
-					args_map[fmap[drop_module(fname)].args[1].args[i+1]] = fargs[i] 
-				end
-                return letify_func(fmap[drop_module(fname)], args_map)
-            end
-        end
-        return node
-    end
-    return new_ast
+#TODO: This doesn´t work with Ts...
+function push_expr_fun(func, expr)
+	@assert(is_fdef(func))
+	fname, fargs, fbody, _ = capture_fdef(func)
+	newbody = Expr(:block, deepcopy(fbody))
+	push!(newbody.args, expr)
+	return create_func(fname, fargs, newbody)
 end
 
-function drop_type(expr)
-	return expr #TODO
-end
+global f_replacements = Dict{Symbol, Int}()
 
-function letify_func(ast, args_map)
-	ast = drop_generics_fdef(ast)
-	@assert(@capture(ast, function fname_(fargs__) fbody_ end))
-	var = Symbol("var_" * string(fname))
-	ast = replace_returns_fun(ast)
-	new_ast = MacroTools.postwalk(ast) do node
-		if node in keys(args_map)
-			return args_map[node]
-		else
-			return node
+function replace_returns_fun(func)
+	fname = capture_fdef_name(func)
+	@assert(!isnothing(fname), "trying to replace returns of a non function " * string(func))
+	ocurrences = get!(f_replacements, fname, 0)
+	label_name = "end_" * string(fname) * "_" * string(ocurrences)
+	var_name = "var_" * string(fname)
+	new_ast = MacroTools.prewalk(func) do node 
+		if @capture(node, return retval_)
+			return :($(Symbol(var_name)) = $retval; @goto $(Symbol(label_name)))
 		end
+		return node
 	end
-	Expr(:let, Expr(:block), Expr(:block, new_ast.args[2], var))
+	f_replacements[fname] = ocurrences + 1
+	return push_expr_fun(new_ast, :(@label $(Symbol(label_name))))
 end
+
+
 
 function process_kernel(ast)
 	ast = replace_returns_fun(ast)
@@ -208,7 +182,8 @@ end
 function process_kernels(ast, kernel_names)
 	processed_kernels = []
 	new_ast = MacroTools.postwalk(ast) do node
-		if @capture(node, function fname_(fargs__) fbody_ end)
+		fname, fargs, fbody, _ = capture_fdef(node)
+		if is_fdef(node)
 			if fname in kernel_names
 				push!(processed_kernels, fname)
 				return process_kernel(node)
@@ -293,7 +268,7 @@ function expr_replacer(ast)
 				if checkbounds(Bool, replacement, 3)
 					emit_warning(replacement[3])
 				end
-                return unsplat_fargs(merged_ast)
+                return unsplat_fcallargs(merged_ast)
             end
         end
         return node

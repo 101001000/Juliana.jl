@@ -21,7 +21,8 @@ warning_list = [
     Warning("WN011", "AttributeSimulated", "A hardcoded attribute has been used to replace a CUDA attribute", "empty"),
     Warning("WN012", "FreeMemorySimulated", "Free memory could not be available in some backends, a default value of 4GB is used in those cases.", ""),
 	Warning("WN013", "UnnecessaryCUDAPrefix", "Code used wrongly a CUDA namespace prefix", "empty"), #TODO: this can be solved in the preprocessing step.
-    Warning("WN014", "UnprocessedKernels", "Some kernels were not found", "empty")
+    Warning("WN014", "UnprocessedKernels", "Some kernels were not found", "empty"),
+    Warning("WN015", "TransitiveCUDAPrefix", "Code used a CUDA namespace prefix for accessing other module", "empty") #TODO: this can be translated also.
 ]
 
 for warning in warning_list

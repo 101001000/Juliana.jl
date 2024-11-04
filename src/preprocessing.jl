@@ -117,7 +117,7 @@ end
 
 # Check if a function calls kernel constructs.
 function is_kernel_function(func)
-	@assert(@capture(func, (function fname_(fargs__) fbody_ end) |  (function fname_(fargs__) where {T__} fbody_ end)))
+	@assert is_fdef(func)
 	is_kernel = false
 	MacroTools.postwalk(func) do node
 		is_kernel |= @capture(node, CUDA.threadIdx()) #TODO: expand this list
@@ -130,8 +130,8 @@ end
 function extract_kfunctions(ast)
 	kfuncs = Set()
 	MacroTools.postwalk(ast) do node
-		if @capture(node, (function fname_(fargs__) fbody_ end) | (function fname_(fargs__) where {T__} fbody_ end))
-			#@debug "checking if is kernel " * string(node)
+		fname = capture_fdef_name(node)
+		if !isnothing(fname)
 			if is_kernel_function(node)
 				push!(kfuncs, drop_module(fname))
 			end
@@ -141,30 +141,6 @@ function extract_kfunctions(ast)
 	return kfuncs
 end
 
-
-function push_expr_fun(ast, expr)
-	@assert(@capture(ast, function fname_(fargs__) fbody_ end))
-	newbody = deepcopy(fbody)
-	push!(newbody.args, expr)
-	return create_func(fname, fargs, newbody)
-end
-
-global f_replacements = Dict{Symbol, Int}()
-
-function replace_returns_fun(ast)
-	@assert(@capture(ast, function fname_(fargs__) fbody_ end))
-	ocurrences = get!(f_replacements, fname, 0)
-	label_name = "end_" * string(fname) * "_" * string(ocurrences)
-	var_name = "var_" * string(fname)
-	new_ast = MacroTools.prewalk(ast) do node 
-		if @capture(node, return retval_)
-			return :($(Symbol(var_name)) = $retval; @goto $(Symbol(label_name)))
-		end
-		return node
-	end
-	f_replacements[fname] = ocurrences + 1
-	return push_expr_fun(new_ast, :(@label $(Symbol(label_name))))
-end
 
 
 
@@ -221,6 +197,8 @@ function remove_prefix(expr)
 	return expr.args[2].value
 end
 
+# TODO: There are some cases such CUDA.adapt which in reality is doing Adapt.adapt
+# Maybe I could replace such CUDA prefixes with the original ones?
 function remove_unnecessary_prefix(ast)
 	cuda_symbols = names(CUDA, all=true)
 	new_ast = skip_prewalk(ast) do node
@@ -232,8 +210,13 @@ function remove_unnecessary_prefix(ast)
 				if node.args[i] == :CUDA
 					try
 						if !(node.args[i+1].value in cuda_symbols)
-							emit_warning(UnnecessaryCUDAPrefix(string(node)))
-							return remove_prefix(node)
+							if (isdefined(CUDA, node.args[i+1].value))
+								emit_warning(TransitiveCUDAPrefix(string(node)))
+								return node
+							else
+								emit_warning(UnnecessaryCUDAPrefix(string(node)))
+								return remove_prefix(node)
+							end
 						end
 					catch
 						@error string(node) * " case not considered for namespace"

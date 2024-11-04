@@ -18,6 +18,42 @@ function drop_module(expr)
 end
 
 
+function drop_type(expr)
+	return expr #TODO
+end
+
+function capture_fdef(node)
+
+	fname = nothing
+	fargs = nothing
+	fbody = nothing
+	T = nothing
+
+    @capture(node, 
+        (function fname_(fargs__) fbody_ end) |
+        (function fname_(fargs__) where {T__} fbody_ end) |
+        (function fname_(fargs__) where T__ fbody_ end) #|
+        #(fname_(fargs__) = fbody_) |
+        #(fname_(fargs__) where {T__} = fbody_) |
+        #(fname_(fargs__) where T__ = fbody_))
+	)
+    
+	return fname, fargs, fbody, T  
+end
+
+function capture_fdef_name(node)
+	fname, _, _, _ = capture_fdef(node)
+	return fname
+end
+
+function is_fdef(node)
+	fname, _, _, _ = capture_fdef(node)
+	return !isnothing(fname)
+end
+
+
+
+
 # Special prewalk function which will skip the walking by returning nothing
 function skip_prewalk(f, node)
 	new_node = f(node)
@@ -34,23 +70,6 @@ function skip_prewalk(f, node)
     end
 end
 
-
-# Special prewalk function which will skip the walking after applying the function
-function prewalk_once(f, node)
-	new_node = f(node)
-	if new_node != node
-		return new_node
-	else
-		if node isa Expr
-			new_args = [prewalk_once(f, arg) for arg in node.args]
-			return Expr(node.head, new_args...)
-		elseif node isa Array
-			return [prewalk_once(f, elem) for elem in node]
-		else
-			return node
-		end
-	end
-end
 
 # Special prewalk function which will skip the walking after applying the function
 function prewalk_parent_info(f, node, parent)
@@ -85,9 +104,34 @@ function dump_gpu_info()
 end
 
 
+
+# This only works with function/macro calls.
+# TODO: Make this work with already existing splatting...
+
+function unsplat_fcallargs(func)
+	if @capture(func, f_(arg_...))
+		return Expr(func.head, f, arg...)
+	end
+	if @capture(func, f_(arg1_, arg2_...))
+		return Expr(func.head, f, arg1, arg2...)
+	end
+	if @capture(func, f_(arg1_, arg2_, arg3_...))
+		return Expr(func.head, f, arg1, arg2, arg3...)
+	end
+	if @capture(func, f_(arg1_, arg2_, arg3, arg4_...))
+		return Expr(func.head, f, arg1, arg2, arg3, arg4...)
+	end
+	if @capture(func, @f_(arg_...))
+		return Expr(:macrocall, f, LineNumberNode(0), arg...)
+	end
+	return func
+end
+
+
 # Quoting makes this anoying double body thing. 
 function create_func(name, args, body)
 	f = :(function $name($args...) $body end)
 	f.args[2].args = f.args[2].args[3].args
-	return unsplat_fargs(f)
+	f.args[1] = unsplat_fcallargs(f.args[1])
+	return f
 end
