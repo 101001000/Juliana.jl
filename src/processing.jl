@@ -73,6 +73,9 @@ replacements = [
 ["CUDA.zeros(args__)", "KAUtils.zeros(KAUtils.get_backend(), args...)"],
 ["CUDA.ones(args__)", "KAUtils.ones(KAUtils.get_backend(), args...)"],
 
+["CUDA.@atomic exp_", "KernelAbstractions.@atomic exp"],
+
+
 ["CUDA.available_memory()", "KAUtils.available_memory(KAUtils.get_backend())", FreeMemorySimulated()],
 
 ["using CUDA", "using CUDA, KernelAbstractions, Juliana, GPUArrays"],
