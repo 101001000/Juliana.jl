@@ -2,6 +2,7 @@ module KAUtils
 
     using KernelAbstractions
     using CUDA
+    using GPUArrays
     import GPUArrays.DataRef
     export ArrayConstructor, ktime
 
@@ -45,9 +46,31 @@ module KAUtils
     ones(backend, T::Type, dims...) = KernelAbstractions.ones(backend, T, dims...)
     ones(backend, dims...) = KernelAbstractions.ones(backend, Float32, dims...)
 
+    function fill(backend::Backend, v, dims...)
+        data = KernelAbstractions.allocate(backend, typeof(v), dims...)
+        fill!(data, v)
+        return data
+    end
+
     function array2tuple(a::Array)
         (a...,)
     end
+
+    function default_rng(backend)
+        if typeof(backend) == "CUDABackend"
+            return GPUArrays.default_rng(CuArray)
+        elseif typeof(backend) == "ROCBackend"
+            return GPUArrays.default_rng(ROCArray)
+        elseif typeof(backend) == "oneAPIBackend"
+            return GPUArrays.default_rng(oneArray)
+        elseif typeof(backend) == "MetalBackend"
+            return GPUArrays.default_rng(MtlArray)
+        else   
+            throw("default_rng not implemented for this backend")
+        end
+    end
+
+    
 
     # Multiply two tuples (making scalars 1 dim tuples) elementwise, and if they have different size, return the rest of the elements of the biggest tuple unchanged.
     function tuple_mult(A, B)
@@ -92,6 +115,7 @@ module KAUtils
         elseif typeof(backend) == "CPU"
             return Sys.free_memory()
         else
+            @error "free_memory not implemented for this backend"
             return default_free_memory
         end
     end

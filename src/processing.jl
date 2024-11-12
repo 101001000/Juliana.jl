@@ -58,9 +58,9 @@ replacements = [
 ["CUDA.@cuprintln(args__)", "KernelAbstractions.@print(args...)"], #TODO: add line jump
 
 
-["CUDA.device()", "nothing", IncompatibleSymbolRemovedWarning("CUDA.device()")],
-["CUDA.@profile discard__", "nothing", IncompatibleSymbolRemovedWarning("CUDA.@profile")],
-["CUDA.WMMA.x_", "nothing", IncompatibleSymbolRemovedWarning("CUDA.WMMA")],
+#["CUDA.device()", "nothing", IncompatibleSymbolRemovedWarning("CUDA.device()")],
+#["CUDA.@profile discard__", "nothing", IncompatibleSymbolRemovedWarning("CUDA.@profile")],
+#["CUDA.WMMA.x_", "nothing", IncompatibleSymbolRemovedWarning("CUDA.WMMA")],
 
 # CUDA Address Aliases
 ["CUDA.AS.Generic", "0"],
@@ -72,11 +72,13 @@ replacements = [
 
 ["CUDA.zeros(args__)", "KAUtils.zeros(KAUtils.get_backend(), args...)"],
 ["CUDA.ones(args__)", "KAUtils.ones(KAUtils.get_backend(), args...)"],
+["CUDA.fill(args__)", "KAUtils.fill(KAUtils.get_backend(), args...)"],
 
 ["CUDA.@atomic exp_", "KernelAbstractions.@atomic exp"],
 
 
 ["CUDA.available_memory()", "KAUtils.available_memory(KAUtils.get_backend())", FreeMemorySimulated()],
+["CUDA.default_rng()", "KAUtils.default_rng(KAUtils.get_backend())"],
 
 ["using CUDA", "using CUDA, KernelAbstractions, Juliana, GPUArrays"],
 

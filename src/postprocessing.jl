@@ -1,9 +1,10 @@
 #TODO: using CUDA splitting.
 
 function postprocess(ast, output_dir)
-	SyntaxTree.linefilter!(ast)
+	#SyntaxTree.linefilter!(ast) #this breaks quoting
 	ast = append_usingKA(ast)
 	ast = remove_kernel_annotations(ast)
+	ast = merge_interp_symbol(ast)
 	ast = MacroTools.flatten(ast)
 	warn_missing_translation(ast)
 	save_fat_ast(ast, output_dir)
@@ -12,14 +13,25 @@ end
 function append_usingKA(ast)
 	ast = MacroTools.postwalk(ast) do node
 		if node isa Expr
-			if node.head == :file
-				return Expr(:file, node.args[1], :(using KernelAbstractions, Juliana, GPUArrays), node.args[2:end]...)
+			if node.head == :using
+				for arg in node.args
+					if arg == Expr(:., :CUDA) # using A, CUDA, B... TODO: nuke CUDA import
+						return Expr(:using, node.args..., Expr(:., :KernelAbstractions), Expr(:., :Juliana), Expr(:., :GPUArrays))
+					end
+					
+					if arg.head == Symbol(":") # using CUDA: ...
+						if arg.args[1] == Expr(:., :CUDA)
+							return Expr(:using, Expr(:., :CUDA), Expr(:., :KernelAbstractions), Expr(:., :Juliana), Expr(:., :GPUArrays))
+						end
+					end
+				end
 			end
 		end
 		return node
 	end
 	return ast
 end
+
 
 function save_fat_ast(ast, output_dir)
 	@assert ast isa Expr
@@ -42,9 +54,50 @@ function save_fat_ast(ast, output_dir)
 	@info "Storing file in " * output_dir * "/" * thin_ast.args[1] 
 	file_output = open(output_dir * "/" * ast.args[1], "w")
 	str = node_to_string(thin_ast)
-	str = replace_interpolation(str)
+	str = replace_quoting_block(str)  # $(Expr(:quote, :val))
+	str = replace_quoting(str) # $(Expr(:quote, quote :val end))
+	#str = replace_interpolation(str) # $(Expr(:$, val))
+	#str = replace_interpolation(str) # $(Expr(:$, val))
+	#
+
+	#str = replace_missingexp(str)
+	str = replace_var_interpolation(str)
+	str = replace_dot_interpolation(str)
+
     write(file_output, str)
     close(file_output)
+end
+
+# Apply the same transformation multiple times
+function apply_transformation(str, f)
+	max_it = 10
+	new_str = ""
+	i = 0
+	while str != new_str
+		if i >= max_it
+			@error "String transformation possibly recursive"
+		end
+		new_str = f(str)
+		i = i + 1
+	end
+
+	return new_str
+end
+
+# Fuse $symbol expressions
+function merge_interp_symbol(ast)
+	ast = MacroTools.postwalk(ast) do node
+		if node isa Expr
+			if node.head == Symbol(raw"$") && length(node.args) == 1
+				if node.args[1] isa Symbol
+					return Symbol(raw"$"*String(node.args[1]))
+				end
+			end
+		end
+		return node
+	end
+
+	return ast
 end
 
 function show_unquoted(io::IO, ex::Expr, indent::Int, prec::Int, quote_level::Int = 0)
@@ -93,9 +146,9 @@ function warn_missing_translation(ast)
 	return ast
 end
 
-function replace_interpolation(str)
-    pattern = r"\$\((Expr\(:\$, :\w+\))\)"
-    inside_pattern = r"\$\(Expr\(:\$, :(.*?)\)\)"
+function replace_var_interpolation(str)
+    pattern = Regex(raw"var\"\\\$(.*?)\"")
+    inside_pattern = Regex(raw"var\"\\\$(.*?)\"")
     for m in eachmatch(pattern, str)
         new_str = match(inside_pattern, m.match).captures[1]
         str = replace(str, m.match => "\$" * new_str)
@@ -103,3 +156,42 @@ function replace_interpolation(str)
     return str
 end
 
+
+
+function replace_interpolation(str)
+    pattern = Regex(raw"\$\(Expr\(:\$, :(.*?)\)\)")
+    inside_pattern = Regex(raw"\$\(Expr\(:\$, :(.*?)\)\)")
+    for m in eachmatch(pattern, str)
+        new_str = match(inside_pattern, m.match).captures[1]
+        str = replace(str, m.match => "\$" * new_str)
+    end
+    return str
+end
+
+function replace_quoting_block(str)
+    pattern = Regex(raw"(?s)\$\(Expr\(:quote, quote(.*?)end\)\)")
+    inside_pattern = Regex(raw"(?s)\$\(Expr\(:quote, quote(.*?)end\)\)")
+    for m in eachmatch(pattern, str)
+        new_str = match(inside_pattern, m.match).captures[1]
+        str = replace(str, m.match => "quote " * new_str * " end")
+    end
+    return str
+end
+
+function replace_quoting(str)
+    pattern = Regex(raw"\$\(Expr\(:quote, (.*?)\)\)")
+    inside_pattern = Regex(raw"\$\(Expr\(:quote, (.*?)\)\)")
+    for m in eachmatch(pattern, str)
+        new_str = match(inside_pattern, m.match).captures[1]
+        str = replace(str, m.match => new_str)
+    end
+    return str
+end
+
+function replace_dot_interpolation(str)
+	return replace(str, raw".:($" => raw".$(")
+end
+
+function remove_linenumber(str)
+	pattern = Regex(raw"\$\(Expr\(:quote, (.*?)\)\)")
+end

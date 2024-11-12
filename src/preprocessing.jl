@@ -6,6 +6,7 @@ function preprocess(filepath, extra_knames=[], extra_kfuncs=[])
 	ast = load_fat_ast(basename(filepath), dirname(filepath))
 	ast = CUDA_symbol_check(ast, true)
 	ast = remove_unnecessary_prefix(ast)
+	ast = wrap_ternary(ast)
 
 	deps = extract_dep_graph(ast)
 	kernel_names = extract_kernelnames(ast)	
@@ -47,9 +48,9 @@ function load_fat_ast(filepath, ref_dir)
     str = read(file_input, String)
     close(file_input)
 	
-	str_ce = comment_encode(str)
-	
-	ast = Expr(:file, filepath, Meta.parse("begin " * str_ce * " end").args...)
+	str = comment_encode(str)
+
+	ast = Expr(:file, filepath, Meta.parse("begin " * str * " end").args...)
 
 	ast_fat = MacroTools.postwalk(ast) do node
 		if MacroTools.@capture(node, include(includefilepath_))
@@ -65,6 +66,49 @@ end
 function comment_encode(str)
 	return str
 end
+
+# Ternaries don't wrap branches in blocks as :if does.
+# This breaks quoting showing, so we force blocks on quote branches in ternaries.
+function wrap_ternary(ast)
+	ast = MacroTools.postwalk(ast) do node
+		if @capture(node, cond_ ? branch1_ : branch2_) # This also captures if.
+			change_branches = false
+			if branch1 isa Expr
+				if branch1.head == :quote
+					branch1 = Expr(:block, LineNumberNode(0), branch1)
+					change_branches = true
+				end
+			end
+			if branch2 isa Expr
+				if branch2.head == :quote
+					branch2 = Expr(:block, LineNumberNode(0), branch2)
+					change_branches = true
+				end
+			end
+			if change_branches
+				return Expr(:if, cond, branch1, branch2)
+			end			
+		end
+		return node
+	end
+end
+#function split_using(str)
+#	pattern = Regex("^using(.*?)")
+#    inside_pattern = Regex("^using(.*?)")
+#    for m in eachmatch(pattern, str)
+#        inner = match(inside_pattern, m.match).captures[1]
+#		items = split(inner, ",")
+#		@info items
+#		new_str = "using "
+#		for item in items
+#			new_str = new_str * item * "\n"
+#		end
+#		@info "Splitting " * m.match * " into " * new_str
+#		str = replace(str, m.match => new_str)
+#    end
+#    return str
+#end
+
 
 #TODO: Make this module aware.
 function extract_dep_graph(ast)
@@ -152,9 +196,47 @@ function CUDA_symbol_check(ast, convert=true)
 	cuda_symbols = names(CUDA)
 	filter!(symbol -> symbol != :CUDA, cuda_symbols) # remove CUDA to avoid replacing import directives
 	envs = [[]]
-	ast = MacroTools.prewalk(ast) do node
+	ast = skip_prewalk(ast) do node
 		if node isa Expr
+
+			# using SOMEPACKAGE: a, b, c... should override CUDA a, b, c
+			if node.head == :using
+				if node.args[1].head == Symbol(":")
+					if node.args[1].args[1] == Expr(:., :CUDA)
+						return nothing
+					else
+						for def in node.args[1].args[2:end]
+							push!(envs[end], def.args[1]) 
+						end
+					end
+				else
+					return nothing
+				end
+			end
+
+			# We do not want to override the export symbols in the export clause.
+			if node.head == :export 
+				return nothing
+			end
+			
+			if @capture(node, struct sname_ sbody__ end)
+				for def in sbody
+					if def isa Symbol
+						push!(envs[end], def)
+					end
+					if @capture(def, v_::T_)
+						push!(envs[end], v)
+					end	
+				end
+			end
+
 			if @capture(node, function name_(args__) body__ end)
+				push!(envs[end], name)
+				for arg in args
+					push!(envs[end], drop_type(arg))
+				end
+			end
+			if @capture(node, name_(args__) = body_)
 				push!(envs[end], name)
 				for arg in args
 					push!(envs[end], drop_type(arg))
@@ -176,6 +258,7 @@ function CUDA_symbol_check(ast, convert=true)
 				push!(envs, [])
 			end
 			for i in eachindex(node.args)
+				#@error "Checking" * string(node.args[i]) " is in... " * string(envs)
 				if node.args[i] in cuda_symbols && !(node.args[i] in (vcat(envs...)))
 					if convert
 						node.args[i] = wrap_with_namespace(node.args[i])
@@ -203,7 +286,7 @@ function remove_unnecessary_prefix(ast)
 	cuda_symbols = names(CUDA, all=true)
 	new_ast = skip_prewalk(ast) do node
 		if node isa Expr
-			if node.head == :using 
+			if node.head == :using
 				return nothing
 			end
 			for i in eachindex(node.args) 

@@ -19,7 +19,11 @@ end
 
 
 function drop_type(expr)
-	return expr #TODO
+	if @capture(expr, v_::T_)
+		return v
+	else
+		return expr
+	end
 end
 
 function capture_fdef(node)
@@ -135,3 +139,34 @@ function create_func(name, args, body)
 	f.args[1] = unsplat_fcallargs(f.args[1])
 	return f
 end
+
+
+#function Base.show_unquoted_expr_fallback(io::IO, ex::Expr, indent::Int, quote_level::Int)
+#	if ex.head == Symbol(raw"$")
+#		print(io, raw"$")
+#		print(io, String(ex.args[1]))
+#	else
+#		print(io, "\$(Expr(")
+#		Base.show(io, ex.head)
+#		for arg in ex.args
+#			print(io, ", ")
+#			Base.show(io, arg)
+#		end
+#		print(io, "))")
+#	end
+#end
+#
+#function Base.valid_import_path(@nospecialize(ex), allow_as = true)
+#    if allow_as && Base.is_expr(ex, :as) && length((ex::Expr).args) == 2
+#        ex = (ex::Expr).args[1]
+#    end
+#	v1 = Base.is_expr(ex, :(.)) 
+#	v2 = length((ex::Expr).args) > 0
+#	v3 = all(a->isa(a,Symbol), (ex::Expr).args)
+#	println("Checkiing")
+#	println(v1)
+#	println(v2)
+#	println(v3)
+#	println(ex.head)
+#    return v1 && v2 && v3
+#end
