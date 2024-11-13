@@ -25,6 +25,24 @@ module KAUtils
     #    end
     #end
 
+    struct Device
+        function Device(ordinal::Integer)
+           
+        end
+    end
+
+    function device()
+        return Device(0)
+    end
+
+    function devices()
+        return [device()]
+    end
+
+    function name(dev::Device)
+        return "Un-implemented device name functionality"
+    end
+
     function get_backend()
         return CUDABackend()
     end

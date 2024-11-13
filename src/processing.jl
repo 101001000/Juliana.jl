@@ -70,6 +70,17 @@ replacements = [
 ["CUDA.AS.Local", "5"],
 
 
+["CUDA.has_cuda()", "true"],
+["CUDA.CUDABackend(args__)", "KAUtils.get_backend()"],
+["CUDA.ndevices()", "1"],
+["CUDA.device!(args__)", "nothing"],
+["CUDA.CuDevice(args__)", "KAUtils.Device(args...)"],
+["CUDA.CuDevice", "KAUtils.Device"],
+["CUDA.device()", "KAUtils.device()"],
+["CUDA.devices()", "KAUtils.devices()"],
+["CUDA.name(args__)", "KAUtils.name(args...)"],
+
+
 ["CUDA.zeros(args__)", "KAUtils.zeros(KAUtils.get_backend(), args...)"],
 ["CUDA.ones(args__)", "KAUtils.ones(KAUtils.get_backend(), args...)"],
 ["CUDA.fill(args__)", "KAUtils.fill(KAUtils.get_backend(), args...)"],
@@ -80,7 +91,7 @@ replacements = [
 ["CUDA.available_memory()", "KAUtils.available_memory(KAUtils.get_backend())", FreeMemorySimulated()],
 ["CUDA.default_rng()", "KAUtils.default_rng(KAUtils.get_backend())"],
 
-["using CUDA", "using CUDA, KernelAbstractions, Juliana, GPUArrays"],
+["using CUDA", "using CUDA, KernelAbstractions, Juliana, KAUtils, GPUArrays"],
 
 ]
 
