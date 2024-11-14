@@ -2,6 +2,7 @@ module KAUtils
 
     using KernelAbstractions
     using CUDA
+    using AMDGPU
     using GPUArrays
     import GPUArrays.DataRef
     export ArrayConstructor, ktime
@@ -10,24 +11,10 @@ module KAUtils
         return :()
     end
 
-    #macro qtime(expr)
-#
-    #    backend_id = expr.args[1].args[2]
-#
-    #    return quote @btime begin esc($expr); KernelAbstractions.synchronize(backend_id) end evals=1 samples=1  end
-    #end
-#
-    #macro ktime(kernel, backend)
-    #    a = Expr(:call, Expr(:. , :KernelAbstractions, QuoteNode(:synchronize)), backend)
-    #    ex = Expr(:block, kernel, a, Expr(:call, :sleep, 1))
-    #    quote
-    #        BenchmarkTools.@btime $ex evals=1 samples=1
-    #    end
-    #end
-
     struct Device
+        ordinal::Integer
         function Device(ordinal::Integer)
-           
+            new(ordinal)
         end
     end
 
@@ -44,7 +31,23 @@ module KAUtils
     end
 
     function get_backend()
-        return CUDABackend()
+
+        backend_var = get(ENV, "KA_BACKEND", "CUDA")
+
+        @info "Using backend " * backend_var
+
+        if backend_var == "CUDA"
+            return CUDABackend()
+        elseif backend_var == "AMD"
+            return ROCBackend()
+        elseif backend_var == "oneAPIBackend"
+            return oneAPIBackend()
+        elseif backend_var == "MetalBackend"
+            return MetalBackend()
+        else   
+            throw("backend " * backend_var * " not recognized")
+        end
+       
     end
 
     function ArrayConstructor(backend, arr)

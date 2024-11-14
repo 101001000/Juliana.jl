@@ -170,3 +170,22 @@ end
 #	println(ex.head)
 #    return v1 && v2 && v3
 #end
+
+# Workaround for breaking seqs. I can make this with a regex and that will allow precompilation
+#function Base.show_unquoted_expr_fallback(io::IO, ex::Expr, indent::Int, quote_level::Int)
+#	if ex.head == :seq
+#		for arg in ex.args
+#			print(io, arg)
+#			print(io, "\n")
+#		end
+#	else
+#		# Normal base/show.jl behavior
+#		print(io, "\$(Expr(")
+#		show(io, ex.head)
+#		for arg in ex.args
+#			print(io, ", ")
+#			show(io, arg)
+#		end
+#		print(io, "))")
+#	end
+#end

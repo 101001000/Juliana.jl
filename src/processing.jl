@@ -91,7 +91,7 @@ replacements = [
 ["CUDA.available_memory()", "KAUtils.available_memory(KAUtils.get_backend())", FreeMemorySimulated()],
 ["CUDA.default_rng()", "KAUtils.default_rng(KAUtils.get_backend())"],
 
-["using CUDA", "using CUDA, KernelAbstractions, Juliana, KAUtils, GPUArrays"],
+#["using CUDA", "using CUDA, KernelAbstractions, Juliana, GPUArrays"],
 
 ]
 

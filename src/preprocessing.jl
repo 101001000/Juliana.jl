@@ -2,8 +2,18 @@ import CUDA
 import SyntaxTree
 
 
-function preprocess(filepath, extra_knames=[], extra_kfuncs=[])
-	ast = load_fat_ast(basename(filepath), dirname(filepath))
+function load_asts(filepaths)
+	extra_files = []
+	for path in filepaths[2:end]
+		relative_path = relpath(path, dirname(filepaths[1]))
+		push!(extra_files, relative_path)
+	end
+	load_fat_ast(basename(filepaths[1]), dirname(filepaths[1]), extra_files)
+end
+
+function preprocess(filepaths, extra_knames=[], extra_kfuncs=[])
+
+	ast = load_asts(filepaths)
 	ast = CUDA_symbol_check(ast, true)
 	ast = remove_unnecessary_prefix(ast)
 	ast = wrap_ternary(ast)
@@ -36,7 +46,7 @@ function preprocess(filepath, extra_knames=[], extra_kfuncs=[])
 end
 
 # filename is relative to the main translating file. Dir is where filename is located in a first instance.
-function load_fat_ast(filepath, ref_dir)
+function load_fat_ast(filepath, ref_dir, extra_files=[], hidden=false)
 	
 	@info "Loading file in " * joinpath(ref_dir, filepath)
 
@@ -50,12 +60,26 @@ function load_fat_ast(filepath, ref_dir)
 	
 	str = comment_encode(str)
 
-	ast = Expr(:file, filepath, Meta.parse("begin " * str * " end").args...)
+	if hidden
+		ast = Expr(:hidden_file, filepath, Meta.parse("begin " * str * " end").args...)
+	else
+		ast = Expr(:file, filepath, Meta.parse("begin " * str * " end").args...)
+	end
+
+	for extra_file in extra_files
+		push!(ast.args, Expr(:hidden_include, extra_file))
+	end
 
 	ast_fat = MacroTools.postwalk(ast) do node
 		if MacroTools.@capture(node, include(includefilepath_))
 			sub_ast = load_fat_ast(joinpath(dirname(filepath), includefilepath), ref_dir)
 			return sub_ast
+		end
+		if node isa Expr
+			if node.head == :hidden_include
+				sub_ast = load_fat_ast(joinpath(dirname(filepath), node.args[1]), ref_dir, [], true)
+				return sub_ast
+			end
 		end
 		return node
 	end
@@ -92,22 +116,6 @@ function wrap_ternary(ast)
 		return node
 	end
 end
-#function split_using(str)
-#	pattern = Regex("^using(.*?)")
-#    inside_pattern = Regex("^using(.*?)")
-#    for m in eachmatch(pattern, str)
-#        inner = match(inside_pattern, m.match).captures[1]
-#		items = split(inner, ",")
-#		@info items
-#		new_str = "using "
-#		for item in items
-#			new_str = new_str * item * "\n"
-#		end
-#		@info "Splitting " * m.match * " into " * new_str
-#		str = replace(str, m.match => new_str)
-#    end
-#    return str
-#end
 
 
 #TODO: Make this module aware.
