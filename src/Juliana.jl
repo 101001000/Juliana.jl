@@ -36,14 +36,14 @@ module Juliana
 			push!(extra_files, run_tests_file_path)
 		end
 
-		translate_files(vcat(main_file_path, extra_files), pkg_output_path * "/src/", extra_knames, extra_kfuncs, gpu_sim)		
+		translate_files(vcat(main_file_path, extra_files), [pkg_output_path * "/src/", pkg_output_path * "/test/"], extra_knames, extra_kfuncs, gpu_sim)		
 	end
 
-	function translate_files(filepaths, output_dir, extra_knames=[], extra_kfuncs=[], gpu_sim="NVIDIA_GeForce_GTX_950")
+	function translate_files(filepaths, output_dirs, extra_knames=[], extra_kfuncs=[], gpu_sim="NVIDIA_GeForce_GTX_950")
 		@info "Translating " * string(filepaths)
-		ast, kernel_names, require_ctx_funcs = preprocess(filepaths, extra_knames, extra_kfuncs)
-		ast = process(ast, kernel_names, require_ctx_funcs, gpu_sim)
-		ast = postprocess(ast, output_dir)	
+		asts, kernel_names, require_ctx_funcs = preprocess(filepaths, extra_knames, extra_kfuncs)
+		asts = process(asts, kernel_names, require_ctx_funcs, gpu_sim)
+		asts = postprocess(asts, output_dirs)	
 		println("Warnings: ")
     	print_warnings()
 	end

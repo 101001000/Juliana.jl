@@ -1,26 +1,30 @@
 import CUDA
 import SyntaxTree
 
-
-function load_asts(filepaths)
-	extra_files = []
-	for path in filepaths[2:end]
-		relative_path = relpath(path, dirname(filepaths[1]))
-		push!(extra_files, relative_path)
+function union_dicts!(dict1, dict2)
+	for key in keys(dict2)
+		new_arr = vcat(get(dict1, key, []), dict2[key])
+		dict1[key] = new_arr
 	end
-	load_fat_ast(basename(filepaths[1]), dirname(filepaths[1]), extra_files)
 end
 
 function preprocess(filepaths, extra_knames=[], extra_kfuncs=[])
 
-	ast = load_asts(filepaths)
-	ast = CUDA_symbol_check(ast, true)
-	ast = remove_unnecessary_prefix(ast)
-	ast = wrap_ternary(ast)
+	asts = []
+	deps = Dict()
+	kernel_names = Set()
+	kernel_funcs = Set()
 
-	deps = extract_dep_graph(ast)
-	kernel_names = extract_kernelnames(ast)	
-	kernel_funcs = extract_kfunctions(ast)
+	for filepath in filepaths
+		ast = load_fat_ast(basename(filepath), dirname(filepath))
+		ast = CUDA_symbol_check(ast, true)
+		ast = remove_unnecessary_prefix(ast)
+		ast = wrap_ternary(ast)
+		union_dicts!(deps,  extract_dep_graph(ast))
+		union!(kernel_names, extract_kernelnames(ast))
+		union!(kernel_funcs, extract_kfunctions(ast))
+		push!(asts, ast)
+	end
 
 	union!(kernel_names, extra_knames)
 	union!(kernel_funcs, extra_kfuncs)
@@ -42,11 +46,11 @@ function preprocess(filepaths, extra_knames=[], extra_kfuncs=[])
 	require_ctx_funcs = setdiff(require_ctx_funcs, kernel_names)
 
 	@debug "Require ctx funcs: " * string(require_ctx_funcs)
-	return ast, kernel_names, require_ctx_funcs
+	return asts, kernel_names, require_ctx_funcs
 end
 
 # filename is relative to the main translating file. Dir is where filename is located in a first instance.
-function load_fat_ast(filepath, ref_dir, extra_files=[], hidden=false)
+function load_fat_ast(filepath, ref_dir)
 	
 	@info "Loading file in " * joinpath(ref_dir, filepath)
 
@@ -60,24 +64,14 @@ function load_fat_ast(filepath, ref_dir, extra_files=[], hidden=false)
 	
 	str = comment_encode(str)
 
-	if hidden
-		ast = Expr(:hidden_file, filepath, Meta.parse("begin " * str * " end").args...)
-	else
-		ast = Expr(:file, filepath, Meta.parse("begin " * str * " end").args...)
-	end
-
-	for extra_file in extra_files
-		push!(ast.args, Expr(:hidden_include, extra_file))
-	end
+	ast = Expr(:file, filepath, Meta.parse("begin " * str * " end").args...)
 
 	ast_fat = MacroTools.postwalk(ast) do node
 		if MacroTools.@capture(node, include(includefilepath_))
-			sub_ast = load_fat_ast(joinpath(dirname(filepath), includefilepath), ref_dir)
-			return sub_ast
-		end
-		if node isa Expr
-			if node.head == :hidden_include
-				sub_ast = load_fat_ast(joinpath(dirname(filepath), node.args[1]), ref_dir, [], true)
+			if !(includefilepath isa String)
+				@warn "Trying to include a file whose path is not known until runtime. Some files may not have been included in the translation"
+			else
+				sub_ast = load_fat_ast(joinpath(dirname(filepath), includefilepath), ref_dir)
 				return sub_ast
 			end
 		end
@@ -157,7 +151,7 @@ function uninterpolate(expr)
 end
 
 function extract_kernelnames(ast)
-	knames = []
+	knames = Set()
 	MacroTools.postwalk(ast) do node
 		if @capture(node, CUDA.@cuda args__ kname_(kargs__))
 			push!(knames, uninterpolate(kname))

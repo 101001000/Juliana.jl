@@ -70,7 +70,8 @@ replacements = [
 ["CUDA.AS.Local", "5"],
 
 
-["CUDA.has_cuda()", "true"],
+["CUDA.has_cuda(args__)", "true"],
+["CUDA.has_cuda_gpu(args__)", "true"],
 ["CUDA.CUDABackend(args__)", "KAUtils.get_backend()"],
 ["CUDA.ndevices()", "1"],
 ["CUDA.device!(args__)", "nothing"],
@@ -95,13 +96,25 @@ replacements = [
 
 ]
 
-function process(ast, kernel_names, require_ctx_funcs, gpu_sim)
-	ast = add_ctx(ast, require_ctx_funcs)
-	ast = expr_replacer(ast)
-	ast = attr_replacer(ast, gpu_sim)
-	ast = kcall_replacer(ast)
-	ast = process_kernels(ast, kernel_names)
-	return ast
+function process(asts, kernel_names, require_ctx_funcs, gpu_sim)
+	processed_asts = []
+	processed_kernels = []
+
+	for ast in asts
+		ast = add_ctx(ast, require_ctx_funcs)
+		ast = expr_replacer(ast)
+		ast = attr_replacer(ast, gpu_sim)
+		ast = kcall_replacer(ast)
+		ast = process_kernels!(ast, kernel_names, processed_kernels)
+		push!(processed_asts, ast)
+	end
+
+	pending_kernels = setdiff(kernel_names, processed_kernels)
+	if !isempty(pending_kernels)
+		emit_warning(UnprocessedKernels(string(pending_kernels)))
+	end
+
+	return processed_asts
 end
 
 function add_ctx(ast, require_ctx_funcs)
@@ -195,8 +208,8 @@ function process_kernel(ast)
 	return ast
 end
 
-function process_kernels(ast, kernel_names)
-	processed_kernels = []
+
+function process_kernels!(ast, kernel_names, processed_kernels)
 	new_ast = MacroTools.postwalk(ast) do node
 		fname, fargs, fbody, _ = capture_fdef(node)
 		if is_fdef(node)
@@ -206,10 +219,6 @@ function process_kernels(ast, kernel_names)
 			end
 		end
 		return node
-	end
-	pending_kernels = setdiff(kernel_names, processed_kernels)
-	if !isempty(pending_kernels)
-		emit_warning(UnprocessedKernels(string(pending_kernels)))
 	end
 	return new_ast
 end

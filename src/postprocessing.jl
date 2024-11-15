@@ -1,13 +1,17 @@
 #TODO: using CUDA splitting.
 
-function postprocess(ast, output_dir)
+function postprocess(asts, output_dirs)
 	#SyntaxTree.linefilter!(ast) #this breaks quoting
-	ast = append_usingKA(ast)
-	ast = remove_kernel_annotations(ast)
-	ast = merge_interp_symbol(ast)
-	ast = MacroTools.flatten(ast)
-	warn_missing_translation(ast)
-	save_fat_ast(ast, output_dir)
+	i = 1
+	for ast in asts
+		ast = append_usingKA(ast)
+		ast = remove_kernel_annotations(ast)
+		ast = merge_interp_symbol(ast)
+		ast = MacroTools.flatten(ast)
+		warn_missing_translation(ast)
+		save_fat_ast(ast, output_dirs[i])
+		i = i + 1
+	end
 end
 
 function append_usingKA(ast)
