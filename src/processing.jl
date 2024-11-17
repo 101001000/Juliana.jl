@@ -36,20 +36,21 @@ replacements = [
 
 ["v_::CUDA.CuArray", "v::GPUArrays.AbstractGPUArray"],
 ["v_::CUDA.CuArray{t__}", "v::GPUArrays.AbstractGPUArray{t...}"],
-["v_::CUDA.CuDeviceArray", "v::GPUArrays.AbstractGPUArray"],
+["v_::CUDA.CuDeviceArray", "v::DenseArray"],
 ["v_::CUDA.CuDeviceArray{t1_}", "v::DenseArray{t1}"],
-["v_::CUDA.CuDeviceArray{t1_, t2_}", "v::GPUArrays.AbstractGPUArray{t1, t2}"],
-["v_::CUDA.CuDeviceArray{t1_, t2_, t3_}", "v::GPUArrays.AbstractGPUArray{t1, t2, t3}"],
+["v_::CUDA.CuDeviceArray{t1_, t2_}", "v::DenseArray{t1, t2}"],
+["v_::CUDA.CuDeviceArray{t1_, t2_, t3_}", "v::DenseArray{t1, t2, t3}"],
 
 
 ["CUDA.CuArray", "GPUArrays.AbstractGPUArray"],
 ["CUDA.CuArray{t__}", "GPUArrays.AbstractGPUArray{t...}"],
-["CUDA.CuDeviceArray", "GPUArrays.AbstractGPUArray"],
-["CUDA.CuDeviceArray{t__}", "GPUArrays.AbstractGPUArray{t...}"],
+["CUDA.CuDeviceArray", "DenseArray"],
+["CUDA.CuDeviceArray{t__}", "DenseArray{t...}"],
 
 
-#["CUDA.CuDynamicSharedArray(T_, dims_)", "@localmem T dims", DynamicSMArrayToStaticSMArrayWarning()],
-["CUDA.@cuStaticSharedMem(T_, dims_)", "@localmem T dims"],
+["CUDA.CuDynamicSharedArray(T_, dims_)", "KernelAbstractions.@localmem T dims", DynamicSMArrayToStaticSMArrayWarning()],
+["CUDA.CuDynamicSharedArray(T_, dims_, off_)", "KernelAbstractions.@localmem T dims", DynamicSMArrayToStaticSMArrayWarning()],
+["CUDA.@cuStaticSharedMem(T_, dims_)", "KernelAbstractions.@localmem T dims"],
 
 ["CUDA.synchronize()", "KernelAbstractions.synchronize(KAUtils.get_backend())"],
 ["CUDA.sync_threads()", "KernelAbstractions.@synchronize()"],
@@ -101,7 +102,7 @@ function process(asts, kernel_names, require_ctx_funcs, gpu_sim)
 	processed_kernels = []
 
 	for ast in asts
-		ast = add_ctx(ast, require_ctx_funcs)
+		ast = add_ctx(ast, require_ctx_funcs, kernel_names)
 		ast = expr_replacer(ast)
 		ast = attr_replacer(ast, gpu_sim)
 		ast = kcall_replacer(ast)
@@ -117,19 +118,54 @@ function process(asts, kernel_names, require_ctx_funcs, gpu_sim)
 	return processed_asts
 end
 
-function add_ctx(ast, require_ctx_funcs)
+
+function add_ctx(ast, require_ctx_funcs, kernel_names)
+	ast = MacroTools.postwalk(ast) do node
+		fname = capture_fdef_name(node)
+		if !isnothing(fname) && drop_module(fname) in require_ctx_funcs && drop_module(fname) != :__init__
+			return add_ctx_calls(node, require_ctx_funcs, kernel_names)
+		end
+		return node
+	end
+
 	ast = MacroTools.postwalk(ast) do node
 		if @capture(node, fname_(fargs__))
-			if drop_module(fname) in require_ctx_funcs
+			if drop_module(fname) in require_ctx_funcs && drop_module(fname) != :__init__  && !(fname in kernel_names)
+
+				if :__ctx__ in node.args
+					return node
+				else 
+					new_node = deepcopy(node)
+					insert!(new_node.args, head_is(get(node.args, 2, nothing), :parameters) ? 3 : 2, :(nothing))
+					return new_node
+				end
+			end
+		end
+		return node
+	end
+
+	return ast
+end
+
+function add_ctx_calls(ast, require_ctx_funcs, kernel_names)
+	ast = MacroTools.postwalk(ast) do node
+		if @capture(node, fname_(fargs__))
+			if drop_module(fname) in require_ctx_funcs && drop_module(fname) != :__init__  && !(fname in kernel_names)
 				new_node = deepcopy(node)
-				insert!(new_node.args, 2, :(KernelAbstractions.@context))
+				insert!(new_node.args, head_is(get(node.args, 2, nothing), :parameters) ? 3 : 2, :__ctx__)	
 				return new_node
 			end
 		end
 		return node
 	end
+	return ast
 end
 
+
+
+function macro_wrap(ast, macro_symbol)
+	return Expr(:macrocall, macro_symbol.args[1], LineNumberNode(1, :none), ast)
+end
 
 
 function constantify_kernel(ast)
@@ -142,24 +178,20 @@ function constantify_kernel(ast)
 		return node
 	end
 	ast2 = MacroTools.postwalk(ast1) do node
-		if @capture(node, @kernel function fname_(fargs__) fbody_ end)
+		if @capture(node, KernelAbstractions.@kernel function fname_(fargs__) fbody_ end)
 			new_args = []
 			for arg in fargs
 				if arg in const_args
-					push!(new_args, Expr(:macrocall, Symbol("@Const"), LineNumberNode(1, :none), arg))
+					push!(new_args, Expr(:macrocall, :(KernelAbstractions.@Const), LineNumberNode(1, :none), arg))
 				else
 					push!(new_args, arg)
 				end
 			end
-			return macro_wrap(create_func(fname, new_args, fbody), Symbol("@kernel"))
+			return macro_wrap(create_func(fname, new_args, fbody), :(KernelAbstractions.@kernel))
 		end
 		return node
 	end 
 	return ast2
-end
-
-function macro_wrap(ast, macro_symbol)
-	return Expr(:macrocall, macro_symbol, LineNumberNode(1, :none), ast)
 end
 
 
@@ -203,7 +235,7 @@ end
 
 function process_kernel(ast)
 	ast = replace_returns_fun(ast)
-	ast = macro_wrap(ast, Symbol("@kernel"))
+	ast = macro_wrap(ast, :(KernelAbstractions.@kernel))
 	ast = constantify_kernel(ast)
 	return ast
 end

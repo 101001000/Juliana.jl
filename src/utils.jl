@@ -10,7 +10,15 @@ function wrap_with_namespace(node)
 	return Expr(:., :CUDA, QuoteNode(node))
 end
 
+function drop_ftype(expr)
+	if @capture(expr, fname_{T__})
+		return fname
+	end
+	return expr
+end
+
 function drop_module(expr)
+	expr = drop_ftype(expr)
 	if @capture(expr, M_.fname_)
 		return fname
 	end
@@ -26,6 +34,16 @@ function drop_type(expr)
 	end
 end
 
+function head_is(node, symbol)
+	if node isa Expr
+		if node.head == symbol
+			return true
+		end
+	end
+	return false
+end
+
+
 function capture_fdef(node)
 
 	fname = nothing
@@ -36,10 +54,13 @@ function capture_fdef(node)
     @capture(node, 
         (function fname_(fargs__) fbody_ end) |
         (function fname_(fargs__) where {T__} fbody_ end) |
-        (function fname_(fargs__) where T__ fbody_ end) #|
-        #(fname_(fargs__) = fbody_) |
-        #(fname_(fargs__) where {T__} = fbody_) |
-        #(fname_(fargs__) where T__ = fbody_))
+        (function fname_(fargs__) where T__ fbody_ end) |
+		(function fname_{T1__}(fargs__) fbody_ end) |
+        (function fname_{T1__}(fargs__) where {T__} fbody_ end) |
+        (function fname_{T1__}(fargs__) where T__ fbody_ end) |
+        (fname_(fargs__) = fbody_) |
+        (fname_(fargs__) where {T__} = fbody_) |
+        (fname_(fargs__) where T__ = fbody_)
 	)
     
 	return fname, fargs, fbody, T  

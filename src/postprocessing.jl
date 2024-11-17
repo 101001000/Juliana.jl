@@ -37,19 +37,15 @@ end
 
 function save_fat_ast(ast, output_dir)
 	@assert ast isa Expr
-	@assert ast.head == :file || ast.head == :hidden_file
+	@assert ast.head == :file
 	thin_ast = MacroTools.prewalk(ast) do node
 		if node isa Expr
-			if (node.head == :file || node.head == :hidden_file) && node != ast
+			if node.head == :file && node != ast
 				if node.args[1] != ast.args[1]
 					filepath = node.args[1]
 					save_fat_ast(node, output_dir)
 					filepath = dirname(ast.args[1]) == "" ? filepath : relpath(filepath, dirname(ast.args[1]))
-					if node.head == :file
-						return :(include($(filepath)))
-					else
-						return nothing
-					end
+					return :(include($(filepath)))
 				end
 			end
 		end

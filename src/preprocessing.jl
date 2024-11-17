@@ -3,7 +3,7 @@ import SyntaxTree
 
 function union_dicts!(dict1, dict2)
 	for key in keys(dict2)
-		new_arr = vcat(get(dict1, key, []), dict2[key])
+		new_arr = union(get(dict1, key, Set{Symbol}()), dict2[key])
 		dict1[key] = new_arr
 	end
 end
@@ -12,8 +12,8 @@ function preprocess(filepaths, extra_knames=[], extra_kfuncs=[])
 
 	asts = []
 	deps = Dict()
-	kernel_names = Set()
-	kernel_funcs = Set()
+	kernel_names = Set{Symbol}()
+	kernel_funcs = Set{Symbol}()
 
 	for filepath in filepaths
 		ast = load_fat_ast(basename(filepath), dirname(filepath))
@@ -38,12 +38,13 @@ function preprocess(filepaths, extra_knames=[], extra_kfuncs=[])
 	while true
 		old_size = length(require_ctx_funcs)
 		for fun in require_ctx_funcs
-			union!(require_ctx_funcs, fun in keys(deps) ? deps[fun] : Set())
+			union!(require_ctx_funcs, fun in keys(deps) ? deps[fun] : Set{Symbol}())
 		end
 		(old_size != length(require_ctx_funcs)) || break
 	end
 
-	require_ctx_funcs = setdiff(require_ctx_funcs, kernel_names)
+	#require_ctx_funcs = setdiff(require_ctx_funcs, kernel_names)
+
 
 	@debug "Require ctx funcs: " * string(require_ctx_funcs)
 	return asts, kernel_names, require_ctx_funcs
@@ -115,19 +116,23 @@ end
 #TODO: Make this module aware.
 function extract_dep_graph(ast)
 	deps = Dict()
-	defs = Set()
+	defs = Set{Symbol}()
 	caller = nothing
 	MacroTools.prewalk(ast) do node
-		if @capture(node, function callerf_(fargs__) body_ end)
+
+		callerf = capture_fdef_name(node)
+		
+		if callerf != nothing
 			caller = callerf
 			push!(defs, drop_module(caller))
 		end
-		if @capture(node, function callerf_(fargs__) where {T__} body_ end)
-			caller = callerf
-			push!(defs, drop_module(caller))
-		end
+
 		if @capture(node, callee_(fargs__)) && drop_module(callee) != drop_module(caller)
-			push!(get!(deps, drop_module(callee), Set()), drop_module(caller))
+			if caller == nothing
+				@error "Function calling without a function caller" * string(node)
+			else
+				push!(get!(deps, drop_module(callee), Set{Symbol}()), drop_module(caller))
+			end
 		end
 		return node
 	end
@@ -151,7 +156,7 @@ function uninterpolate(expr)
 end
 
 function extract_kernelnames(ast)
-	knames = Set()
+	knames = Set{Symbol}()
 	MacroTools.postwalk(ast) do node
 		if @capture(node, CUDA.@cuda args__ kname_(kargs__))
 			push!(knames, uninterpolate(kname))
@@ -167,6 +172,7 @@ function is_kernel_function(func)
 	is_kernel = false
 	MacroTools.postwalk(func) do node
 		is_kernel |= @capture(node, CUDA.threadIdx()) #TODO: expand this list
+		is_kernel |= @capture(node, CUDA.sync_threads())
 		return node
 	end
 	return is_kernel
@@ -174,7 +180,7 @@ end
 
 # Retrieve functions which require kernel constructs
 function extract_kfunctions(ast)
-	kfuncs = Set()
+	kfuncs = Set{Symbol}()
 	MacroTools.postwalk(ast) do node
 		fname = capture_fdef_name(node)
 		if !isnothing(fname)
