@@ -3,6 +3,9 @@ module KAUtils
     using KernelAbstractions
     using CUDA
     using AMDGPU
+    using oneAPI
+    using Metal
+
     using GPUArrays
     import GPUArrays.DataRef
     export ArrayConstructor, ktime
@@ -11,7 +14,14 @@ module KAUtils
         return :()
     end
 
-    DeviceArray{T, A, N} = Union{CUDA.CuDeviceArray{T, A, N}, AMDGPU.Device.ROCDeviceArray{T, A, N}}
+    # A common interface is not yet defined for device arrays.
+    # It has been decided that they should inherit from DenseArray,
+    # but AMDGPU inherits from AbstractArray for example in the stable version,
+    # so for the moment, we use this until the new version is released.
+    DeviceArray{T, A, N} = Union{CUDA.CuDeviceArray{T, A, N},
+                                 AMDGPU.Device.ROCDeviceArray{T, A, N},
+                                 oneAPI.oneDeviceArray{T, A, N},
+                                 Metal.MtlDeviceArray{T, A, N}}
 
     struct Device
         ordinal::Integer
