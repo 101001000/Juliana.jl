@@ -11,6 +11,8 @@ module KAUtils
         return :()
     end
 
+    DeviceArray{T, A, N} = Union{CUDA.CuDeviceArray{T, A, N}, AMDGPU.Device.ROCDeviceArray{T, A, N}}
+
     struct Device
         ordinal::Integer
         function Device(ordinal::Integer)

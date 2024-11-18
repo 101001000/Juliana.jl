@@ -36,16 +36,16 @@ replacements = [
 
 ["v_::CUDA.CuArray", "v::GPUArrays.AbstractGPUArray"],
 ["v_::CUDA.CuArray{t__}", "v::GPUArrays.AbstractGPUArray{t...}"],
-["v_::CUDA.CuDeviceArray", "v::DenseArray"],
-["v_::CUDA.CuDeviceArray{t1_}", "v::DenseArray{t1}"],
-["v_::CUDA.CuDeviceArray{t1_, t2_}", "v::DenseArray{t1, t2}"],
-["v_::CUDA.CuDeviceArray{t1_, t2_, t3_}", "v::DenseArray{t1, t2, t3}"],
+["v_::CUDA.CuDeviceArray", "v::KAUtils.DeviceArray"],
+["v_::CUDA.CuDeviceArray{t1_}", "v::KAUtils.DeviceArray{t1}"],
+["v_::CUDA.CuDeviceArray{t1_, t2_}", "v::KAUtils.DeviceArray{t1, t2}"],
+["v_::CUDA.CuDeviceArray{t1_, t2_, t3_}", "v::KAUtils.DeviceArray{t1, t2, t3}"],
 
 
 ["CUDA.CuArray", "GPUArrays.AbstractGPUArray"],
 ["CUDA.CuArray{t__}", "GPUArrays.AbstractGPUArray{t...}"],
-["CUDA.CuDeviceArray", "DenseArray"],
-["CUDA.CuDeviceArray{t__}", "DenseArray{t...}"],
+["CUDA.CuDeviceArray", "KAUtils.DeviceArray"],
+["CUDA.CuDeviceArray{t__}", "DenKAUtils.DeviceArrayseArray{t...}"],
 
 
 ["CUDA.CuDynamicSharedArray(T_, dims_)", "KernelAbstractions.@localmem T dims", DynamicSMArrayToStaticSMArrayWarning()],
