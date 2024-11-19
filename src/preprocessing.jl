@@ -3,7 +3,7 @@ import SyntaxTree
 
 function union_dicts!(dict1, dict2)
 	for key in keys(dict2)
-		new_arr = union(get(dict1, key, Set{Symbol}()), dict2[key])
+		new_arr = union(get(dict1, key, Set{Union{Symbol, Expr}}()), dict2[key])
 		dict1[key] = new_arr
 	end
 end
@@ -38,7 +38,7 @@ function preprocess(filepaths, extra_knames=[], extra_kfuncs=[])
 	while true
 		old_size = length(require_ctx_funcs)
 		for fun in require_ctx_funcs
-			union!(require_ctx_funcs, fun in keys(deps) ? deps[fun] : Set{Symbol}())
+			union!(require_ctx_funcs, fun in keys(deps) ? deps[fun] : Set{Union{Expr, Symbol}}())
 		end
 		(old_size != length(require_ctx_funcs)) || break
 	end
@@ -116,7 +116,7 @@ end
 #TODO: Make this module aware.
 function extract_dep_graph(ast)
 	deps = Dict()
-	defs = Set{Symbol}()
+	defs = Set{Union{Expr, Symbol}}()
 	caller = nothing
 	MacroTools.prewalk(ast) do node
 
@@ -124,14 +124,18 @@ function extract_dep_graph(ast)
 		
 		if callerf != nothing
 			caller = callerf
-			push!(defs, drop_module(caller))
+			try
+				push!(defs, drop_module(caller))
+			catch
+				@error string(drop_module(caller))
+			end
 		end
 
 		if @capture(node, callee_(fargs__)) && drop_module(callee) != drop_module(caller)
 			if caller == nothing
-				@error "Function calling without a function caller" * string(node)
+				#@error "Function calling without a function caller" * string(node)
 			else
-				push!(get!(deps, drop_module(callee), Set{Symbol}()), drop_module(caller))
+				push!(get!(deps, drop_module(callee), Set{Union{Expr, Symbol}}()), drop_module(caller))
 			end
 		end
 		return node

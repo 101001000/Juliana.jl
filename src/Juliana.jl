@@ -14,7 +14,7 @@ module Juliana
 
 	using .KAUtils
 
-	export translate_file, translate_pkg, dump_gpu_info
+	export translate_files, translate_file, translate_pkg, dump_gpu_info
 	export KAUtils
 
 	function translate_pkg(pkg_input_path, pkg_output_path, extra_files=[], extra_knames=[], extra_kfuncs=[], gpu_sim="NVIDIA_GeForce_GTX_950")
@@ -36,7 +36,10 @@ module Juliana
 			push!(extra_files, run_tests_file_path)
 		end
 
-		translate_files(vcat(main_file_path, extra_files), [pkg_output_path * "/src/", pkg_output_path * "/test/"], extra_knames, extra_kfuncs, gpu_sim)		
+		output_paths = joinpath.(pkg_output_path, relpath.(dirname.([main_file_path, extra_files...]), pkg_input_path))
+		
+
+		translate_files(vcat(main_file_path, extra_files), output_paths , extra_knames, extra_kfuncs, gpu_sim)		
 	end
 
 	function translate_files(filepaths, output_dirs, extra_knames=[], extra_kfuncs=[], gpu_sim="NVIDIA_GeForce_GTX_950")
@@ -47,6 +50,8 @@ module Juliana
 		println("Warnings: ")
     	print_warnings()
 	end
+
+	translate_file(filepath, output_dir, extra_knames=[], extra_kfuncs=[], gpu_sim="NVIDIA_GeForce_GTX_950") = translate_files([filepath], [output_dir], extra_knames, extra_kfuncs, gpu_sim)
 
 
 end

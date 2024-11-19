@@ -22,30 +22,33 @@ replacements = [
 
 
 #CuArray constructor:
-["CUDA.CuArray(args__)", "KAUtils.ArrayConstructor(KAUtils.get_backend(), args...)"],
+["CUDA.CuArray{t__}(arr_)", "KAUtils.ArrayConstructor(KAUtils.get_backend(), arr)"],
 ["CUDA.CuArray{t_}(args__)", "KAUtils.ArrayConstructor(KAUtils.get_backend(), t, args...)"],
 ["CUDA.CuArray{t_, d_}(args__)", "KAUtils.ArrayConstructor(KAUtils.get_backend(), t, args...)"], #TODO: I'm ignoring here dimensions. Check if this can be done
+["CUDA.CuArray(args__)", "KAUtils.ArrayConstructor(KAUtils.get_backend(), args...)"],
+#CuArray typ:
+["v_::CUDA.CuArray", "v::GPUArrays.AbstractGPUArray"],
+["v_::CUDA.CuArray{t__}", "v::GPUArrays.AbstractGPUArray{t...}"],
+#CuArray gen:
+["CUDA.CuArray", "GPUArrays.AbstractGPUArray"],
+["CUDA.CuArray{t__}", "GPUArrays.AbstractGPUArray{t...}"],
 
 #CuDeviceArray constructor:
 ["CUDA.CuDeviceArray(args__)", "GPUArrays.AbstractGPUArray(args...)"],
 ["CUDA.CuDeviceArray{t1_}(args__)", "GPUArrays.AbstractGPUArray{t1}(args...)"],
 ["CUDA.CuDeviceArray{t1_, t2_}(args__)", "GPUArrays.AbstractGPUArray{t1, t2}(args...)"],
 ["CUDA.CuDeviceArray{t1_, t2_, t3_}(args__)", "GPUArrays.AbstractGPUArray{t1, t2, t3}(args...)"],
-
-#CuArray typ:
-
-["v_::CUDA.CuArray", "v::GPUArrays.AbstractGPUArray"],
-["v_::CUDA.CuArray{t__}", "v::GPUArrays.AbstractGPUArray{t...}"],
+#CuDeviceArray type:
 ["v_::CUDA.CuDeviceArray", "v::KAUtils.DeviceArray"],
 ["v_::CUDA.CuDeviceArray{t1_}", "v::KAUtils.DeviceArray{t1}"],
 ["v_::CUDA.CuDeviceArray{t1_, t2_}", "v::KAUtils.DeviceArray{t1, t2}"],
 ["v_::CUDA.CuDeviceArray{t1_, t2_, t3_}", "v::KAUtils.DeviceArray{t1, t2, t3}"],
-
-
-["CUDA.CuArray", "GPUArrays.AbstractGPUArray"],
-["CUDA.CuArray{t__}", "GPUArrays.AbstractGPUArray{t...}"],
+#CuArray gen:
 ["CUDA.CuDeviceArray", "KAUtils.DeviceArray"],
-["CUDA.CuDeviceArray{t__}", "DenKAUtils.DeviceArrayseArray{t...}"],
+["CUDA.CuDeviceArray{t__}", "KAUtils.DeviceArray{t...}"],
+
+["CUDA.CuDeviceMatrix","KAUtils.DeviceMatrix"],
+["CUDA.CuDeviceVector","KAUtils.DeviceVector"],
 
 
 ["CUDA.CuDynamicSharedArray(T_, dims_)", "KernelAbstractions.@localmem T dims", DynamicSMArrayToStaticSMArrayWarning()],
@@ -62,6 +65,7 @@ replacements = [
 #["CUDA.device()", "nothing", IncompatibleSymbolRemovedWarning("CUDA.device()")],
 #["CUDA.@profile discard__", "nothing", IncompatibleSymbolRemovedWarning("CUDA.@profile")],
 #["CUDA.WMMA.x_", "nothing", IncompatibleSymbolRemovedWarning("CUDA.WMMA")],
+["CUDA.math_mode!(args__)", "nothing", IncompatibleSymbolRemovedWarning("CUDA.math_mode!")],
 
 # CUDA Address Aliases
 ["CUDA.AS.Generic", "0"],
@@ -81,7 +85,10 @@ replacements = [
 ["CUDA.device()", "KAUtils.device()"],
 ["CUDA.devices()", "KAUtils.devices()"],
 ["CUDA.name(args__)", "KAUtils.name(args...)"],
+["CUDA.name", "KAUtils.name"], #For function objects
 
+#["CUDA.functional(args__)", "KernelAbstractions.functional(KAUtils.get_backend())"],
+["CUDA.functional(args__)", "true"], #TODO: Most backends doesn't support KA functional yet...
 
 ["CUDA.zeros(args__)", "KAUtils.zeros(KAUtils.get_backend(), args...)"],
 ["CUDA.ones(args__)", "KAUtils.ones(KAUtils.get_backend(), args...)"],
@@ -118,11 +125,12 @@ function process(asts, kernel_names, require_ctx_funcs, gpu_sim)
 	return processed_asts
 end
 
+non_kernel_funcs = [:__init__, :main]
 
 function add_ctx(ast, require_ctx_funcs, kernel_names)
 	ast = MacroTools.postwalk(ast) do node
 		fname = capture_fdef_name(node)
-		if !isnothing(fname) && drop_module(fname) in require_ctx_funcs && drop_module(fname) != :__init__
+		if !isnothing(fname) && drop_module(fname) in require_ctx_funcs && !(drop_module(fname) in non_kernel_funcs)
 			return add_ctx_calls(node, require_ctx_funcs, kernel_names)
 		end
 		return node
@@ -130,7 +138,7 @@ function add_ctx(ast, require_ctx_funcs, kernel_names)
 
 	ast = MacroTools.postwalk(ast) do node
 		if @capture(node, fname_(fargs__))
-			if drop_module(fname) in require_ctx_funcs && drop_module(fname) != :__init__  && !(fname in kernel_names)
+			if drop_module(fname) in require_ctx_funcs && !(drop_module(fname) in non_kernel_funcs) !(fname in kernel_names)
 
 				if :__ctx__ in node.args
 					return node
@@ -178,7 +186,8 @@ function constantify_kernel(ast)
 		return node
 	end
 	ast2 = MacroTools.postwalk(ast1) do node
-		if @capture(node, KernelAbstractions.@kernel function fname_(fargs__) fbody_ end)
+		fname, fargs, fbody, Ts = capture_fdef(node)
+		if !isnothing(fname)
 			new_args = []
 			for arg in fargs
 				if arg in const_args
@@ -187,7 +196,7 @@ function constantify_kernel(ast)
 					push!(new_args, arg)
 				end
 			end
-			return macro_wrap(create_func(fname, new_args, fbody), :(KernelAbstractions.@kernel))
+			return macro_wrap(create_func(fname, new_args, fbody, Ts), :(KernelAbstractions.@kernel))
 		end
 		return node
 	end 
@@ -195,22 +204,13 @@ function constantify_kernel(ast)
 end
 
 
-#TODO: I'm nuking the genereics in kernels. Maybe this should be revisited...
-function drop_generics_fdef(ast)
-	if @capture(ast, function fname_(fargs__) where {ftypes__} body_ end)
-		return create_func(fname, fargs, body)
-	end
-	return ast
-end
-
-
 #TODO: This doesn´t work with Ts...
 function push_expr_fun(func, expr)
 	@assert(is_fdef(func))
-	fname, fargs, fbody, _ = capture_fdef(func)
+	fname, fargs, fbody, Ts = capture_fdef(func)
 	newbody = Expr(:block, deepcopy(fbody))
 	push!(newbody.args, expr)
-	return create_func(fname, fargs, newbody)
+	return create_func(fname, fargs, newbody, Ts)
 end
 
 global f_replacements = Dict{Symbol, Int}()
@@ -236,14 +236,14 @@ end
 function process_kernel(ast)
 	ast = replace_returns_fun(ast)
 	ast = macro_wrap(ast, :(KernelAbstractions.@kernel))
-	ast = constantify_kernel(ast)
+	#ast = constantify_kernel(ast)
 	return ast
 end
 
 
 function process_kernels!(ast, kernel_names, processed_kernels)
 	new_ast = MacroTools.postwalk(ast) do node
-		fname, fargs, fbody, _ = capture_fdef(node)
+		fname, _, _, _ = capture_fdef(node)
 		if is_fdef(node)
 			if fname in kernel_names
 				push!(processed_kernels, fname)
@@ -275,7 +275,7 @@ function kcall_replacer(ast)
 				end
 			end
 			convert_call = Expr(:., :convert, Expr(:tuple, :Int64, kwargs_dict[:threads]))
-			tuple_mult = Expr(:call, Expr(:., :KAUtils, QuoteNode(:tuple_mult)), kwargs_dict[:blocks], kwargs_dict[:threads])
+			tuple_mult = Expr(:call, Expr(:., :KAUtils, QuoteNode(:tuple_mult)), Expr(:call, :convert, Int64, kwargs_dict[:blocks]), Expr(:call, :convert, Int64, kwargs_dict[:threads]))
     		
 			kcall_name = Symbol("kernel_call_" * string(kcalls_replaced))
 

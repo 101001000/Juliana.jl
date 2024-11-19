@@ -23,6 +23,9 @@ module KAUtils
                                  oneAPI.oneDeviceArray{T, A, N},
                                  Metal.MtlDeviceArray{T, A, N}}
 
+    const DeviceVector = DeviceArray{T,1,A} where {T,A}
+    const DeviceMatrix = DeviceArray{T,2,A} where {T,A}
+
     struct Device
         ordinal::Integer
         function Device(ordinal::Integer)
@@ -43,23 +46,26 @@ module KAUtils
     end
 
     function get_backend()
-
-        backend_var = get(ENV, "KA_BACKEND", "CUDA")
-
-        @info "Using backend " * backend_var
+        backend_var = get(ENV, "KA_BACKEND", "default")
+        if backend_var == "default"
+            if CUDA.has_cuda_gpu()
+                backend_var = "CUDA"
+            elseif AMDGPU.has_rocm_gpu()
+                backend_var = "ROCM"
+            end                
+        end
 
         if backend_var == "CUDA"
             return CUDABackend()
-        elseif backend_var == "AMD"
+        elseif backend_var == "ROCM"
             return ROCBackend()
-        elseif backend_var == "oneAPIBackend"
+        elseif backend_var == "ONEAPI"
             return oneAPIBackend()
-        elseif backend_var == "MetalBackend"
+        elseif backend_var == "METAL"
             return MetalBackend()
         else   
             throw("backend " * backend_var * " not recognized")
         end
-       
     end
 
     function ArrayConstructor(backend, arr)
@@ -73,7 +79,7 @@ module KAUtils
         d_arr = KernelAbstractions.allocate(backend, T, dims...)
         return d_arr
     end
-
+    
     zeros(backend, T::Type, dims...) = KernelAbstractions.zeros(backend, T, dims...)
     zeros(backend, dims...) = KernelAbstractions.zeros(backend, Float32, dims...)
     ones(backend, T::Type, dims...) = KernelAbstractions.ones(backend, T, dims...)

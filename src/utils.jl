@@ -154,10 +154,14 @@ end
 
 
 # Quoting makes this anoying double body thing. 
-function create_func(name, args, body)
+function create_func(name, args, body, Ts=nothing)
 	f = :(function $name($args...) $body end)
 	f.args[2].args = f.args[2].args[3].args
 	f.args[1] = unsplat_fcallargs(f.args[1])
+	if !isnothing(Ts)
+		call = deepcopy(f.args[1])
+		f.args[1] = Expr(:where, call, Ts...)
+	end
 	return f
 end
 
