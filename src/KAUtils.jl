@@ -47,13 +47,6 @@ module KAUtils
 
     function get_backend()
         backend_var = get(ENV, "KA_BACKEND", "default")
-        if backend_var == "default"
-            if CUDA.has_cuda_gpu()
-                backend_var = "CUDA"
-            elseif AMDGPU.has_rocm_gpu()
-                backend_var = "ROCM"
-            end                
-        end
 
         if backend_var == "CUDA"
             return CUDABackend()

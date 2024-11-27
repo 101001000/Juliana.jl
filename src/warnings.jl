@@ -22,7 +22,9 @@ warning_list = [
     Warning("WN012", "FreeMemorySimulated", "Free memory could not be available in some backends, a default value of 4GB is used in those cases.", ""),
 	Warning("WN013", "UnnecessaryCUDAPrefix", "Code used wrongly a CUDA namespace prefix", "empty"), #TODO: this can be solved in the preprocessing step.
     Warning("WN014", "UnprocessedKernels", "Some kernels were not found", "empty"),
-    Warning("WN015", "TransitiveCUDAPrefix", "Code used a CUDA namespace prefix for accessing other module", "empty") #TODO: this can be translated also.
+    Warning("WN015", "TransitiveCUDAPrefix", "Code used a CUDA namespace prefix for accessing other module", "empty"), #TODO: this can be translated also.
+    Warning("WN016", "NoConstMemory", "CUDA Const device array specifier removed", ""), #TODO: this could be performed with Base.Experimental.Const()
+    Warning("WN017", "DeviceFunctionOverloaded", "A GPU function which requires context propagation could be being used in the CPU. Ensure a proper differentiation of GPU and CPU functions.", "empty") #TODO: this could be performed with Base.Experimental.Const()
 ]
 
 for warning in warning_list

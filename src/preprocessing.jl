@@ -112,6 +112,7 @@ function wrap_ternary(ast)
 	end
 end
 
+processed_defs = Set()
 
 #TODO: Make this module aware.
 function extract_dep_graph(ast)
@@ -122,9 +123,13 @@ function extract_dep_graph(ast)
 
 		callerf = capture_fdef_name(node)
 		
-		if callerf != nothing
+		if !isnothing(callerf)
 			caller = callerf
 			try
+				if drop_module(callerf) in processed_defs
+					emit_warning(DeviceFunctionOverloaded(string(drop_module(callerf))))
+				end
+				push!(processed_defs, drop_module(callerf))
 				push!(defs, drop_module(caller))
 			catch
 				@error string(drop_module(caller))
@@ -132,7 +137,7 @@ function extract_dep_graph(ast)
 		end
 
 		if @capture(node, callee_(fargs__)) && drop_module(callee) != drop_module(caller)
-			if caller == nothing
+			if isNothing(caller)
 				#@error "Function calling without a function caller" * string(node)
 			else
 				push!(get!(deps, drop_module(callee), Set{Union{Expr, Symbol}}()), drop_module(caller))

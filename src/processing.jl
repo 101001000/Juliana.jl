@@ -86,6 +86,7 @@ replacements = [
 ["CUDA.devices()", "KAUtils.devices()"],
 ["CUDA.name(args__)", "KAUtils.name(args...)"],
 ["CUDA.name", "KAUtils.name"], #For function objects
+["CUDA.Const(arg_)", "arg", NoConstMemory()],
 
 #["CUDA.functional(args__)", "KernelAbstractions.functional(KAUtils.get_backend())"],
 ["CUDA.functional(args__)", "true"], #TODO: Most backends doesn't support KA functional yet...
