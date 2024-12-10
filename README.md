@@ -1,48 +1,69 @@
 # JULIANA (**J**ulia **U**nification **L**ayer for **I**ntel, **A**MD, **N**vidia and **A**pple)
 
-Translation from CUDA -> KernelAbstraction is the only translation supported right now.
+Juliana is a syntax translation tool for [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl) package to [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl). It will translate a big portion of CUDA.jl functions and macros to KernelAbstractions.jl equivalent constructs.
 
 
-Sample usage: 
-```julia console
-> using(Julana); main("--input fileinput1.jl --outpupt fileoutput.jl --backend=(CUDA|ONEAPI|METAL|CPU|AMD) --recursive")
+## Installation and usage:
+
+
+### Installation
+```bash
+git clone https://github.com/101001000/Juliana.jl
+julia -e 'using Pkg; Pkg.develop(path="./Juliana.jl")'
 ```
 
-Working [Julia Rodinia](https://github.com/JuliaParallel/rodinia/tree/master/julia_cuda) benchmarks:
-- [x] backprop
-- [x] bfs
-- [x] hotspot
-- [x] leukocyte
-- [x] lud 
-- [x] nn
-- [x] nw
-- [x] particlefilter_double 
-- [x] pathfinder
-- [x] streamcluster
+
+### Usage
+```bash
+using Juliana
+
+# Translate single file
+Juliana.translate_files(
+    ["path/to/file.jl"],
+    ["path/to/output1"]
+)
+
+# Translate multiple files
+Juliana.translate_files(
+    ["path/to/file1.jl", "path/to/file2.jl"],
+    ["path/to/output1", "path/to/output2"]
+)
+
+# Translate an entire package
+Juliana.translate_pkg(
+    "path/to/package",
+    "path/to/output-package"
+)
+```
+
+### Additional arguments:
+- `extra_knames`: Additional list of kernel names to be included.
+- `extra_kfuncs`: Additional list of kernel functions to be included in the output.
+- `gpu_sim`: GPU simulator to be used. Default: "NVIDIA_GeForce_GTX_950"
+
+Use this arguments when Juliana is not able to find the proper definitions of the kernels or functions.
+
+### Extra considerations:
 
 
-Working [ExaTronKernels](https://github.com/exanauts/ExaTronKernels.jl) benchmarks:
 
-It's necessary to remove the comment from CUDA.jl at the beginning of the file quoted with """ as juliana doesn´t support multiline comments yet, and It's also necessary to mark the n variable as const, and remove n as an argument for all functions as KernelAbstractions doesn´t allow dynamic shared memory allocation. All this changes are reflected in my [ExaTronKernels fork](https://github.com/101001000/ExaTronKernels.jl)
+## Feature support
+<details>
+<br>
+- [x] Indexing
+- [x] Ldg to @Const
+</details>
 
-- [x] dicf 
-- [x] dicfs 
-- [x] dcauchy
-- [x] dtrpcg0
-- [x] dprsrch
-- [x] daxpy 
-- [x] dssyax
-- [x] dmid
-- [x] dgpstep
-- [x] dbreakpt
-- [x] dnrm2
-- [x] nrm2
-- [x] dcopy
-- [x] ddot
-- [x] dscal
-- [x] dtrqsol
-- [x] dspcg
-- [x] dgpnorm
-- [x] dtron
-- [ ] driver_kernel -> requires some changes in how functions called from the inside of kernels are handled.
 
+
+## Translated projects
+[Julia Rodinia](https://github.com/JuliaParallel/rodinia) benchmarks. Full translation, no changes required.
+
+[Julia MiniBUDE](https://github.com/UoB-HPC/miniBUDE/tree/main/src/julia/miniBUDE.jl). Full translation, minimal changes required (`device` function name clash).
+
+[Julia BabelStream](https://github.com/UoB-HPC/BabelStream/tree/main/src/julia/JuliaStream.jl). Full translation, minimal changes required (`device` function name clash).
+
+[Oceananigans.jl](https://github.com/CliMA/Oceananigans.jl). Full translation, no changes required. Only AMD/NVIDIA (FFTW requires unified memory).
+
+## Citation
+Proceeding of the congress where the project was presented are not released yet.
