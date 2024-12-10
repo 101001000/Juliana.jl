@@ -1,3 +1,4 @@
+#TODO: encapsulate this into a Warning manager.
 struct Warning
     warningcode::String
     warningname::String
@@ -14,7 +15,16 @@ warning_list = [
     Warning("WN005", "IncompatibleSymbolRemovedWarning", "CUDA Symbol removed by incompatibility", "empty"),
     Warning("WN006", "ThreadSizeNotChecked", "Thread size not checked for max size", ""),
     Warning("WN007", "ThreadSizeTooLarge", "Thread size shouldn't exceed max size for compatibility with older devices", ""),
-    Warning("WN008", "DeviceAttributeWarning", "Device attributes are loaded from a config file emulating some Nvidia GPU", "")
+    Warning("WN008", "DeviceAttributeWarning", "Device attributes are loaded from a config file emulating some Nvidia GPU", ""),
+    Warning("WN009", "ImplicitCudaNamespace", "Implicit namespace candidate symbol found, make sure your code and imports are not overriding CUDA symbols.", "empty"),
+    Warning("WN010", "UnsupportedKWArg", "Keyword argument in kernel call not supported.", "empty"),
+    Warning("WN011", "AttributeSimulated", "A hardcoded attribute has been used to replace a CUDA attribute", "empty"),
+    Warning("WN012", "FreeMemorySimulated", "Free memory could not be available in some backends, a default value of 4GB is used in those cases.", ""),
+	Warning("WN013", "UnnecessaryCUDAPrefix", "Code used wrongly a CUDA namespace prefix", "empty"), #TODO: this can be solved in the preprocessing step.
+    Warning("WN014", "UnprocessedKernels", "Some kernels were not found", "empty"),
+    Warning("WN015", "TransitiveCUDAPrefix", "Code used a CUDA namespace prefix for accessing other module", "empty"), #TODO: this can be translated also.
+    Warning("WN016", "NoConstMemory", "CUDA Const device array specifier removed", ""), #TODO: this could be performed with Base.Experimental.Const()
+    Warning("WN017", "DeviceFunctionOverloaded", "A GPU function which requires context propagation could be being used in the CPU. Ensure a proper differentiation of GPU and CPU functions.", "empty") #TODO: this could be performed with Base.Experimental.Const()
 ]
 
 for warning in warning_list
@@ -59,6 +69,10 @@ function print_warnings_dict(warnings_dict)
             aggregated_warnings[key] = [(warning.data, count)]
         end
     end
+
+	if isempty(aggregated_warnings)
+		return
+	end
 
     # Determine dynamic padding based on the longest entry for each field
     max_warning_code_length = maximum([length(key[1]) for key in keys(aggregated_warnings)])

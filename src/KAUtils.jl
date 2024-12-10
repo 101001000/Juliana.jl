@@ -1,7 +1,12 @@
 module KAUtils
 
     using KernelAbstractions
-    using BenchmarkTools
+    using CUDA
+    using AMDGPU
+    using oneAPI
+    using Metal
+
+    using GPUArrays
     import GPUArrays.DataRef
     export ArrayConstructor, ktime
 
@@ -9,18 +14,50 @@ module KAUtils
         return :()
     end
 
-    macro qtime(expr)
+    # A common interface is not yet defined for device arrays.
+    # It has been decided that they should inherit from DenseArray,
+    # but AMDGPU inherits from AbstractArray for example in the stable version,
+    # so for the moment, we use this until the new version is released.
+    DeviceArray{T, A, N} = Union{CUDA.CuDeviceArray{T, A, N},
+                                 AMDGPU.Device.ROCDeviceArray{T, A, N},
+                                 oneAPI.oneDeviceArray{T, A, N},
+                                 Metal.MtlDeviceArray{T, A, N}}
 
-        backend_id = expr.args[1].args[2]
+    const DeviceVector = DeviceArray{T,1,A} where {T,A}
+    const DeviceMatrix = DeviceArray{T,2,A} where {T,A}
 
-        return quote @btime begin esc($expr); KernelAbstractions.synchronize(backend_id) end evals=1 samples=1  end
+    struct Device
+        ordinal::Integer
+        function Device(ordinal::Integer)
+            new(ordinal)
+        end
     end
 
-    macro ktime(kernel, backend)
-        a = Expr(:call, Expr(:. , :KernelAbstractions, QuoteNode(:synchronize)), backend)
-        ex = Expr(:block, kernel, a, Expr(:call, :sleep, 1))
-        quote
-            BenchmarkTools.@btime $ex evals=1 samples=1
+    function device()
+        return Device(0)
+    end
+
+    function devices()
+        return [device()]
+    end
+
+    function name(dev::Device)
+        return "Un-implemented device name functionality"
+    end
+
+    function get_backend()
+        backend_var = get(ENV, "KA_BACKEND", "default")
+
+        if backend_var == "CUDA"
+            return CUDABackend()
+        elseif backend_var == "ROCM"
+            return ROCBackend()
+        elseif backend_var == "ONEAPI"
+            return oneAPIBackend()
+        elseif backend_var == "METAL"
+            return MetalBackend()
+        else   
+            throw("backend " * backend_var * " not recognized")
         end
     end
 
@@ -35,15 +72,37 @@ module KAUtils
         d_arr = KernelAbstractions.allocate(backend, T, dims...)
         return d_arr
     end
-
+    
     zeros(backend, T::Type, dims...) = KernelAbstractions.zeros(backend, T, dims...)
     zeros(backend, dims...) = KernelAbstractions.zeros(backend, Float32, dims...)
     ones(backend, T::Type, dims...) = KernelAbstractions.ones(backend, T, dims...)
     ones(backend, dims...) = KernelAbstractions.ones(backend, Float32, dims...)
 
+    function fill(backend::Backend, v, dims...)
+        data = KernelAbstractions.allocate(backend, typeof(v), dims...)
+        fill!(data, v)
+        return data
+    end
+
     function array2tuple(a::Array)
         (a...,)
     end
+
+    function default_rng(backend)
+        if typeof(backend) == "CUDABackend"
+            return GPUArrays.default_rng(CuArray)
+        elseif typeof(backend) == "ROCBackend"
+            return GPUArrays.default_rng(ROCArray)
+        elseif typeof(backend) == "oneAPIBackend"
+            return GPUArrays.default_rng(oneArray)
+        elseif typeof(backend) == "MetalBackend"
+            return GPUArrays.default_rng(MtlArray)
+        else   
+            throw("default_rng not implemented for this backend")
+        end
+    end
+
+    
 
     # Multiply two tuples (making scalars 1 dim tuples) elementwise, and if they have different size, return the rest of the elements of the biggest tuple unchanged.
     function tuple_mult(A, B)
@@ -73,6 +132,25 @@ module KAUtils
         return array2tuple(b)
     end
 
+    function free_memory(backend)
+        #TODO: fill this.
+        default_free_memory = 4096 * 2^20
+
+        if typeof(backend) == "CUDABackend"
+            return CUDA.free_memory()
+        elseif typeof(backend) == "ROCBackend"
+            #AMD.free()
+        elseif typeof(backend) == "oneAPIBackend"
+
+        elseif typeof(backend) == "MetalBackend"
+
+        elseif typeof(backend) == "CPU"
+            return Sys.free_memory()
+        else
+            @error "free_memory not implemented for this backend"
+            return default_free_memory
+        end
+    end
 
 
 end
