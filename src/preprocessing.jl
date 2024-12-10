@@ -137,7 +137,7 @@ function extract_dep_graph(ast)
 		end
 
 		if @capture(node, callee_(fargs__)) && drop_module(callee) != drop_module(caller)
-			if isNothing(caller)
+			if isnothing(caller)
 				#@error "Function calling without a function caller" * string(node)
 			else
 				push!(get!(deps, drop_module(callee), Set{Union{Expr, Symbol}}()), drop_module(caller))
